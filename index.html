@@ -168,6 +168,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   color: var(--accent); font-size: 1.05em; letter-spacing: -0.02em; padding: 0 0.04em;
 }
 .hero__headline .slash { color: var(--muted); font-weight: 300; }
+.hero__headline .docs-note {
+  font-family: var(--f-serif); font-style: italic; font-weight: 400;
+  font-size: 0.52em; color: var(--paper-dim); letter-spacing: 0.01em;
+  vertical-align: middle; display: inline-block; margin-top: 0.1em;
+}
 .hero__foot {
   position: relative; z-index: 2;
   display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 40px; align-items: end;
@@ -1874,7 +1879,7 @@ body::after {
   <h1 class="hero__headline">
     structurize develop ship<span class="slash">.</span><br>
     <em>// 0 → 1+ //</em><br>
-    docs included<span class="slash">.</span>
+    <em class="docs-note">(docs included.)</em>
   </h1>
 
   <div class="hero__foot">
