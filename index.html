@@ -549,6 +549,19 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   color: rgba(26,26,26,0.45); letter-spacing: 0.18em; text-transform: uppercase;
   transform: translateZ(15px);
 }
+/* Lab card flip animation */
+@keyframes lab-flip-out { from { opacity:1; transform:perspective(800px) rotateY(0deg); } to { opacity:0; transform:perspective(800px) rotateY(-88deg); } }
+@keyframes lab-flip-in  { from { opacity:0; transform:perspective(800px) rotateY(88deg); }  to { opacity:1; transform:perspective(800px) rotateY(0deg); } }
+.winwin.flip-out { animation: lab-flip-out 0.2s ease-in  forwards; transform-origin: center; }
+.winwin.flip-in  { animation: lab-flip-in  0.22s ease-out forwards; transform-origin: center; }
+/* Lab card dark theme (odd index) */
+.winwin--dark { background: #07091a; }
+.winwin--dark .winwin__body { background: #07091a; }
+.winwin--dark .winwin__title { color: #e0ecff; }
+.winwin--dark .winwin__copy  { color: #5a7a9a; }
+.winwin--dark .winwin__chips span { background: rgba(77,179,255,0.07); border-color: rgba(77,179,255,0.18); color: #4db3ff; }
+.winwin--dark .winwin__foot  { color: #2a4060; border-color: rgba(255,255,255,0.06); }
+.winwin--dark .winwin__shine { opacity: 0.1; }
 .lab3d__tabs {
   display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line);
 }
@@ -749,6 +762,15 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   text-transform: uppercase; color: var(--paper);
   display: inline-flex; align-items: center; gap: 12px;
 }
+.note__body {
+  display: none; grid-column: 1/-1; margin-top: 12px;
+  font-size: 14px; line-height: 1.65; color: var(--paper-dim);
+  border-left: 2px solid var(--accent); padding-left: 16px;
+  max-width: 56ch;
+}
+.note--open .note__body { display: block; }
+.note--open .note__cta { color: var(--accent); }
+.note--open { background: rgba(77,179,255,0.025); }
 @media (max-width: 820px) {
   .notes { grid-template-columns: 1fr; }
   .note { border-right: 0 !important; padding-right: 0 !important; }
@@ -867,6 +889,22 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   text-decoration:none; transition:border-color .2s, color .2s;
 }
 .am-fi-link:hover { color:#b8d4ff; border-color:#4db3ff; }
+.am-fi-detail { display:flex; flex-direction:column; }
+.am-fi-section { margin-bottom:20px; }
+.am-fi-section-label {
+  font-family:var(--f-mono); font-size:9px; letter-spacing:0.22em;
+  text-transform:uppercase; color:#4a6a9a; margin-bottom:10px; display:block;
+}
+.am-fi-decisions { list-style:none; padding:0; margin:0; display:grid; gap:7px; }
+.am-fi-decisions li {
+  font-size:13px; line-height:1.45; color:#6b8ab0;
+  padding-left:14px; position:relative;
+}
+.am-fi-decisions li::before { content:"·"; position:absolute; left:0; color:#4db3ff; font-weight:700; }
+.am-fi-roadmap {
+  font-family:var(--f-mono); font-size:11.5px; line-height:1.6;
+  color:#6b8ab0; letter-spacing:0.01em; margin:0;
+}
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ============ V2 — VISUAL ARTIFACTS + MOTION ============ */
@@ -1728,8 +1766,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   </div>
 
   <h1 class="hero__headline">
-    Ship AI products<span class="slash">.</span><br>
-    <em>// PRD to prod //</em><br>
+    structurize develop ship<span class="slash">.</span><br>
+    <em>// 0 → 1+ //</em><br>
     docs included<span class="slash">.</span>
   </h1>
 
@@ -1834,19 +1872,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
     <div class="lab3d">
       <div class="lab3d__stage" id="labStage">
+        <div class="lab3d__card" id="labCard">
         <button class="lab3d__nav lab3d__nav--prev" id="labPrev" aria-label="Previous"><span>‹</span></button>
         <button class="lab3d__nav lab3d__nav--next" id="labNext" aria-label="Next"><span>›</span></button>
-        <div class="lab3d__card" id="labCard">
-          <div class="winwin">
-            <div class="winwin__bar">
-              <div class="winwin__dots">
-                <span class="d d--r"></span>
-                <span class="d d--y"></span>
-                <span class="d d--g"></span>
-              </div>
-              <div class="winwin__tab" id="labTabPath">~ / lab / ai-tools.md</div>
-              <div class="winwin__meta" id="labMeta">lab/01</div>
-            </div>
+          <div class="winwin" id="labWinwin">
             <div class="winwin__body">
               <div class="winwin__shine"></div>
               <div class="winwin__content" id="labContent"></div>
@@ -1889,15 +1918,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     </div>
     <div class="about">
       <div class="about__copy reveal">
-        <p>Eduard Shatalov. 6+ years leading B2B SaaS delivery — last role: Configuration Director at CRS, leading 30 engineers across cross-platform roadmaps. Cut one delivery cycle from 2 years to 6 months by rebuilding the process.</p>
+        <p>Eduard Shatalov. 6+ years leading B2B SaaS delivery — last role: Senior Team Lead at CRS, leading 30 engineers across cross-platform roadmaps. Cut one delivery cycle from 2 years to 6 months by rebuilding the process.</p>
         <p class="dim">Since Mar 2026: solo-building AI products end-to-end. Shadow (live AI second-brain, dogfooded daily), AI Eval (LLM testing workbench, 25-route Next.js app), PromptOps (prompt registry monorepo). PM thinking, engineering execution, docs included.</p>
       </div>
       <div class="passport reveal">
         <div class="passport__head"><span>PROFILE</span><span>REV 2026.05</span></div>
         <div class="passport__rows">
-          <div class="passport__row"><div class="k">Role</div><div class="v">AI Product · Delivery Lead</div></div>
+          <div class="passport__row"><div class="k">Role</div><div class="v">Senior Team Lead · AI Product Builder</div></div>
           <div class="passport__row"><div class="k">Experience</div><div class="v">6+ yrs · led 30 eng · 3+ yrs B2B platform</div></div>
-          <div class="passport__row"><div class="k">Stack</div><div class="v">Next · React · Hono · Pg · pgvector · Python · C#/.NET</div></div>
+          <div class="passport__row"><div class="k">Backend</div><div class="v">C#/.NET · Hono · Node.js · Postgres · pgvector · Redis · Python · REST · Docker · CI/CD</div></div>
+          <div class="passport__row"><div class="k">Frontend</div><div class="v">Next.js · React · TypeScript · Tailwind · Playwright</div></div>
           <div class="passport__row"><div class="k">Method</div><div class="v">Define → Map → Prototype → Evaluate → Ship</div></div>
           <div class="passport__row"><div class="k">Location</div><div class="v">Montevideo · Remote · RU/EN/ES</div></div>
         </div>
@@ -1978,26 +2008,26 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   const PROJECTS = [
     { code:"P/01", year:"2026", title:"Shadow", kicker:"AI second brain — live MVP, dogfooded daily",
       color:"#4db3ff",
-      img: null,
-      desc:"External cognitive layer capturing life events, classifying into 12 life areas, and storing in pgvector RAG. Surfaces patterns via daily/weekly reports, ShadowOrb chat, and 4 structured Zod-validated intervention tools. Cost-aware model router chooses gpt-4o-mini vs gpt-4o under 1ms. RLS-enforced on all 18 Supabase tables.",
+      desc:"External cognitive layer — captures life events, classifies into 12 areas, stores in pgvector RAG, surfaces patterns via daily/weekly reports, ShadowOrb chat, and 4 Zod-validated intervention tools. Cost-aware router: mini vs 4o. RLS on all 18 Supabase tables.",
+      metrics:[{v:"8",l:"sprints shipped"},{v:"28",l:"API namespaces"},{v:"18",l:"Supabase tables"},{v:"17",l:"E2E specs"}],
       tags:["Next 16","React 19","Supabase","pgvector","OpenAI","Zod","Playwright"],
       decisions:[
-        "pgvector over Pinecone — one integration, fits Supabase, zero extra cost",
-        "Keyword router (sub-1ms) over LLM router — 200ms+ vs <1ms, cheaper per call",
+        "pgvector over Pinecone — one integration, fits Supabase, zero extra infra cost",
+        "Keyword router sub-1ms over LLM router — 200× faster, cheaper per call",
         "Daily cost cap over per-request — simpler, sufficient for single-user dogfood",
         "`server-only` import guards over edge runtime — keep secrets server-side",
       ],
-      roadmap:"S9: mobile responsive · S10: Whisper voice journaling · S11: invite flow + multi-user · Backlog: retry/backoff on OpenAI, per-min rate limit, data export endpoint",
+      roadmap:"S9: mobile · S10: Whisper voice · S11: invite flow + multi-user · Backlog: retry/backoff, per-min rate limit, data export",
       label:"DASHBOARD",
       url:"https://shadow-landing-sage.vercel.app",
       repo:"https://github.com/Qalipso/Shadow-AI-Second-Brain",
       docs:"./shadow.html",
       intro:"shadow", sceneIdx:0 },
 
-    { code:"P/02", year:"2026", title:"AI Evaluation", kicker:"LLM testing workbench — 25 routes",
+    { code:"P/02", year:"2026", title:"AI Evaluation", kicker:"LLM testing workbench — 25 routes, ship-ready",
       color:"#36c5c5",
-      img: null,
-      desc:"UI reference implementation and product spec for an LLM eval platform. 25 routes: rubric editor, claim-level groundedness heat map, regression compare, human review queue, markdown export, 8-article wiki. One rubric calls a real LLM judge (gpt-4o-mini); rest demonstrates feature surface with mock data.",
+      desc:"UI reference + product spec for LLM eval platform. 25 routes, 8-article wiki, mock data. One rubric calls real gpt-4o-mini judge. Honest DemoBanner clarifies scope. Rubric editor, groundedness heat map, regression compare, human review queue, markdown export.",
+      metrics:[{v:"25",l:"routes"},{v:"8",l:"wiki articles"},{v:"1",l:"real LLM rubric"},{v:"5",l:"E2E specs"}],
       tags:["Next 15","React 19","TS","Tailwind","react-markdown"],
       decisions:[
         "Mock-first for UI speed — real LLM rubric added in S3 as proof point",
@@ -2005,43 +2035,43 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
         "string.indexOf heat map — avoid LLM cost during demo, replace in S3",
         "Honest DemoBanner — credibility over inflated claims",
       ],
-      roadmap:"S3: SQLite persistence + 1 real LLM rubric (/api/rubric/score) + auth · S5: full case study with honest framing",
+      roadmap:"S3: SQLite persist + auth + full LLM rubric pipeline · S5: case study with honest framing",
       label:"PIPELINE",
       url:"https://ai-eval-tool.vercel.app",
       repo:"https://github.com/Qalipso/ai-evaluation-tool",
       docs:"./ai-evaluation.html",
       intro:"ai-evaluation", sceneIdx:1 },
 
-    { code:"P/03", year:"2026", title:"PromptOps", kicker:"Prompt registry & versioning — pnpm monorepo",
+    { code:"P/03", year:"2026", title:"PromptOps", kicker:"Prompt registry & versioning — full stack monorepo",
       color:"#d4903a",
-      img: null,
-      desc:"Prompt asset registry as pnpm monorepo (Hono + Drizzle + Postgres API, Next.js 15 web, CLI). Immutable versioning with SHA-256 render hashing. Custom Handlebars-like template engine — type-safe, zero runtime deps. Audit log + lifecycle states: draft → active → archived. 50+ unit tests.",
+      desc:"Prompt asset registry for production AI workflows. pnpm monorepo with Hono API, Drizzle/Postgres, Next.js 15, and CLI. Supports immutable prompt versioning, SHA-256 render hashing, lifecycle states, audit logs, and a custom type-safe template engine. Covered by 50+ unit tests.",
+      metrics:[{v:"5",l:"sprints"},{v:"12",l:"API endpoints"},{v:"5",l:"DB tables"},{v:"50+",l:"unit tests"}],
       tags:["Hono 4","Drizzle 0.36","Postgres","Next 15","Turbo","Vitest"],
       decisions:[
         "Custom template engine over Handlebars — type-safe, no runtime dep, fully tested",
         "Hono over Express — edge-ready, smaller bundle, modern middleware API",
         "Drizzle over Prisma — SQL-first, less magic, direct query control",
-        "Monorepo Turbo — API/Web/CLI share domain types, one `tsc --noEmit`",
+        "Turbo monorepo — API/Web/CLI share domain types, one `tsc --noEmit`",
       ],
-      roadmap:"S2: diff viewer + 6 render-check assertion types + public deploy + E2E · S5: case study + 60s walkthrough",
+      roadmap:"S2: diff viewer + 6 render-check types + public deploy + E2E · S5: 60s walkthrough + case study",
       label:"REGISTRY",
       url:"https://promptops-tool.vercel.app",
       repo:"https://github.com/Qalipso/promptops-tool",
       docs:"./promptops.html",
       intro:"promptops", sceneIdx:2 },
 
-    { code:"P/04", year:"2026", title:"Shadow Landing", kicker:"Product marketing page — Lighthouse 92/100/100/100",
+    { code:"P/04", year:"2026", title:"Shadow Landing", kicker:"Product story page — Lighthouse 92/100/100/100",
       color:"#9b7ebd",
-      img: null,
-      desc:"Marketing landing for Shadow — 11 scrollable scenes, procedural SVG mascot Shady with 11 state configs and spring-physics magnetic pull, Supabase waitlist with honeypot bot defense and UTM tracking. Static export on Vercel. 8 Playwright E2E specs covering anchor nav, waitlist validation, and CTA flows.",
+      desc:"11-scene narrative landing for Shadow. Procedural SVG mascot Shady — 11 states, spring-physics magnetic pull. Supabase waitlist with honeypot, UTM tracking, localStorage fallback. Static export. 8 Playwright E2E specs.",
+      metrics:[{v:"11",l:"scenes"},{v:"92",l:"Lighthouse perf"},{v:"100",l:"a11y · BP · SEO"},{v:"8",l:"E2E specs"}],
       tags:["Next 15.5","Framer Motion 11","TS","Tailwind v3","Playwright","Static export"],
       decisions:[
-        "Procedural SVG mascot over Lottie — bespoke animation, no JSON bloat, full state control",
+        "Procedural SVG mascot over Lottie — bespoke, no JSON bloat, full state control",
         "Static export over SSR — zero runtime cost, instant Vercel free-tier deploy",
-        "Supabase REST direct over API route — simpler, anon-key scoped, one less hop",
-        "Custom spring physics over CSS transitions — character personality, magnetic pull feel",
+        "Supabase REST direct over API route — simpler, anon-key scoped",
+        "Custom spring physics over CSS transitions — character personality + magnetic pull",
       ],
-      roadmap:"S0: remove `out/` from git (25MB committed) · S5: cross-link shadow case study + image optimization pass",
+      roadmap:"S0: remove out/ from git (25MB committed) · S5: cross-link shadow case study + image optimization",
       label:"HERO",
       url:"https://shadow-landing-sage.vercel.app",
       repo:"https://github.com/Qalipso/Shadow-Landing",
@@ -2050,16 +2080,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
     { code:"P/05", year:"2026", title:"RAG Playground", kicker:"Side-by-side retrieval teaching sandbox",
       color:"#40c080",
-      img: null,
-      desc:"In-browser RAG sandbox: chunker → dual retrieval (keyword BM25 or OpenAI embeddings toggle) → heuristic and LLM-as-judge faithfulness eval. Side-by-side runner compares up to 4 pipeline configs on the same query. No API key needed for keyword mode — runs fully in-browser.",
+      desc:"In-browser RAG sandbox: chunker → keyword BM25 or OpenAI embed retrieval toggle → heuristic and LLM-as-judge faithfulness eval. Side-by-side runner compares up to 4 pipeline configs on same query. No API key for keyword mode.",
+      metrics:[{v:"5",l:"pipeline stages"},{v:"2",l:"retrieval modes"},{v:"4",l:"eval metrics"},{v:"6",l:"sample docs"}],
       tags:["Next 15","React 18","TS","Custom MVP engine","OpenAI embeddings"],
       decisions:[
         "In-browser engine over server-side — no API keys required for visitors",
-        "Keyword BM25 first — no backend cost, works offline, teaches fundamentals",
+        "Keyword BM25 first — no backend cost, works offline, teaches the fundamentals",
         "Side-by-side runner over single run — comparison thinking is the core lesson",
-        "Custom evaluator over real Ragas — avoid LLM cost, deterministic for teaching",
+        "Custom evaluator over real Ragas — deterministic, no LLM cost during demo",
       ],
-      roadmap:"S4: real OpenAI embeddings + cosine retrieval toggle + LLM-as-judge faithfulness (gpt-4o-mini) · S5: case study",
+      roadmap:"S4: real embeddings + cosine toggle + LLM-as-judge (gpt-4o-mini) · S5: case study",
       label:"GRAPH",
       url:"https://rag-playground-tool.vercel.app",
       repo:"https://github.com/Qalipso/rag-memory-playground",
@@ -2068,16 +2098,16 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
     { code:"P/06", year:"2026", title:"SaaS Delivery", kicker:"B2B implementation tracker — case mgmt",
       color:"#e07040",
-      img: null,
-      desc:"B2B SaaS implementation tracker — contract to go-live as structured cases with 7-stage pipeline (Kickoff → Go-Live → Handoff), SLA breach detection, blocker classification (customer IT / dirty data / 3rd-party), and green/yellow/red health scoring. Realistic mock data from experience leading 30+ engineers across 6-month delivery cycles.",
+      desc:"Contract-to-go-live cases with 7-stage pipeline (Kickoff → Handoff), SLA breach detection, blocker classification (IT / dirty data / 3rd-party), and green/yellow/red health scoring. Realistic mock data from leading 30+ engineers.",
+      metrics:[{v:"5",l:"routes shipped"},{v:"7",l:"pipeline stages"},{v:"13",l:"docs files"},{v:"5",l:"Mermaid diagrams"}],
       tags:["Next 16.2","React 19","TS","Static gen","Mock JSON","Mermaid"],
       decisions:[
-        "Mock JSON over real DB — portfolio demo, no infra cost, focus on domain model",
+        "Mock JSON over real DB — portfolio demo, focus on domain model, no infra cost",
         "Static generation over SSR — Vercel free tier, fast, no cold starts",
         "5 routes shipped, 5 backlogged — time vs surface trade, honest roadmap",
-        "Mermaid in markdown — maintainable diagrams, no custom renderer needed",
+        "Mermaid in markdown — maintainable diagrams, no custom renderer",
       ],
-      roadmap:"S5: 5 missing routes (handoffs, blockers, sla, customers, team) + smoke tests on health logic · Case study from real delivery experience",
+      roadmap:"S5: handoffs + blockers + sla + customers + team routes + smoke tests · Case study from real delivery experience",
       label:"KANBAN",
       url:"https://saas-delivery-tool.vercel.app",
       repo:"https://github.com/Qalipso/saas-delivery-case-flow",
@@ -2303,9 +2333,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   };
 
   const NOTES = [
-    { code:"N/01", date:"2026.04", t:"Prompt scoring ≠ PromptOps",        s:"Version history, specs and regression beat one-shot scores.", tags:["promptops","eval","infra"], status:"live",  rev:"v2", read:"4 min" },
-    { code:"N/02", date:"2026.03", t:"Evaluating AI without fake numbers", s:"When rubrics, golden sets and LLM-as-judge earn their keep.",  tags:["eval","rubric","judge"],     status:"live",  rev:"v3", read:"6 min" },
-    { code:"N/03", date:"2026.02", t:"Second brain as personal OS",        s:"Capture is easy. Structure is the product.",                  tags:["shadow","memory","os"],      status:"draft", rev:"v1", read:"3 min" },
+    { code:"N/01", date:"2026.04", t:"Prompt scoring ≠ PromptOps",        s:"Version history, specs and regression beat one-shot scores.", body:"A score tells you how a prompt performed once. A version history tells you if it degraded, and why. PromptOps treats prompts as software: immutable versions, SHA-256 render hashing, lifecycle states. Score is a metric. Spec + regression is a system.", tags:["promptops","eval","infra"], status:"live",  rev:"v2", read:"4 min" },
+    { code:"N/02", date:"2026.03", t:"Evaluating AI without fake numbers", s:"When rubrics, golden sets and LLM-as-judge earn their keep.",  body:"Most AI eval dashboards show numbers that look precise but mean nothing. Real eval has three layers: human-written rubrics (what correct looks like), a golden set (known inputs with known outputs), and LLM-as-judge for scale. Skip any layer and you're measuring confidence, not quality.", tags:["eval","rubric","judge"],     status:"live",  rev:"v3", read:"6 min" },
+    { code:"N/03", date:"2026.02", t:"Second brain as personal OS",        s:"Capture is easy. Structure is the product.",                  body:"Everyone captures. Notion, voice memos, starred tweets. The gap is structure: what gets surfaced, when, and why. Shadow's insight: the brain doesn't need more storage — it needs a retrieval layer that knows context. pgvector + daily digest + pattern detection. Capture is table stakes.", tags:["shadow","memory","os"],      status:"draft", rev:"v1", read:"3 min" },
   ];
 
   /* ============================================================
@@ -2808,43 +2838,15 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
      ============================================================ */
   function renderSystems() {
     const list = $("systemsList");
-    // derive placeholder accent from project color
-    list.innerHTML = PROJECTS.map((p) => {
-      const col = p.color || "#4db3ff";
-      const glow = col + "14"; // ~8% opacity hex
-      const imgArea = p.img
-        ? `<img src="${p.img}" alt="${p.title} screenshot" loading="lazy">`
-        : `<div class="system__img-placeholder" style="--ph-color:${col}0d;--ph-glow:${col}1a;--ph-accent:${col}80">
-             <div class="system__img-ph-label">
-               <span class="ph-code">${p.code} · ${p.year}</span>
-               <span class="ph-name">${p.label}</span>
-               <span class="ph-note">screenshot coming</span>
-             </div>
-           </div>`;
-      return `
+    list.innerHTML = PROJECTS.map((p) => `
       <article class="system reveal">
-        <div class="system__img-host">${imgArea}</div>
+        <div class="system__code">${p.code}<small>${p.year}</small></div>
         <div class="system__body">
-          <div class="system__code">${p.code} <small>${p.year}</small></div>
           <h3>${p.title}</h3>
           <div class="system__kicker">${p.kicker}</div>
           <p class="system__desc">${p.desc}</p>
-
-          <span class="system__stack-label">Stack</span>
+          ${p.metrics ? `<div class="system__metrics">${p.metrics.map(m => `<div class="metric"><span class="metric__v">${m.v}</span><span class="metric__l">${m.l}</span></div>`).join("")}</div>` : ""}
           <div class="system__tags">${p.tags.map((t) => `<span>${t}</span>`).join("")}</div>
-
-          ${p.decisions ? `
-          <div class="system__decisions">
-            <span class="system__section-label">Key decisions</span>
-            <ul>${p.decisions.map(d => `<li>${d}</li>`).join("")}</ul>
-          </div>` : ""}
-
-          ${p.roadmap ? `
-          <div class="system__roadmap">
-            <span class="system__section-label">Roadmap</span>
-            <p>${p.roadmap}</p>
-          </div>` : ""}
-
           <div class="system__actions">
             ${p.url  ? `<a class="system__view" href="${p.url}" target="_blank" rel="noopener noreferrer">Demo <span>↗</span></a>` : ""}
             ${p.repo ? `<a class="system__view" href="${p.repo}" target="_blank" rel="noopener noreferrer">Repo <span>↗</span></a>` : ""}
@@ -2852,8 +2854,24 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
             ${p.sceneIdx !== undefined ? `<button class="system__intro" data-scene="${p.sceneIdx}"><span class="pulse"></span> Intro <span>↗</span></button>` : ""}
           </div>
         </div>
-      </article>`;
-    }).join("");
+        <div class="system__visual">
+          <div class="system__ascii-host">
+            <pre class="system__ascii" data-scene="${p.sceneIdx}" aria-hidden="true"></pre>
+            <div class="system__ascii-label"><span>${p.label}</span><span>${p.code}</span></div>
+          </div>
+          ${PROJECT_MINIS[p.code] ? `
+          <div class="system__mini" aria-hidden="true">
+            <div class="h">
+              <span>${PROJECT_MINIS[p.code].title}</span>
+              ${PROJECT_MINIS[p.code].live ? `<span class="live">live</span>` : ""}
+            </div>
+            <div class="lines">
+              ${PROJECT_MINIS[p.code].lines.map(([cls, txt]) => `<span class="${cls || ""}">${txt}</span>`).join("")}
+            </div>
+          </div>` : ""}
+        </div>
+      </article>
+    `).join("");
     // mount ASCII mini previews — module may load async, retry until ready
     const mountMini = () => {
       if (window.attachAsciiMiniPreviews) window.attachAsciiMiniPreviews();
@@ -2929,22 +2947,34 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
       });
     }
 
-    let idx = 0;
+    let idx = -1;
     function setActive(i) {
-      idx = (i + LAB_TABS.length) % LAB_TABS.length;
-      tabs.querySelectorAll(".lab3d__tab").forEach((el, j) => el.setAttribute("aria-selected", j === idx));
-      if (pager) pager.querySelectorAll(".dot").forEach((d, j) => d.classList.toggle("on", j === idx));
-      const t = LAB_TABS[idx];
-      $("labTabPath").textContent = `~ / lab / ${t.id}.md`;
-      $("labMeta").textContent = t.code;
-      $("labFoot").textContent = t.code;
-      $("labContent").innerHTML = `
-        <h3 class="winwin__title">${t.title}</h3>
-        <p class="winwin__copy">${t.body}</p>
-        <div class="winwin__chips">${t.meta.map((m) => `<span>${m}</span>`).join("")}</div>
-      `;
-      $("labContent").style.animation = "none";
-      requestAnimationFrame(() => { $("labContent").style.animation = ""; });
+      const newIdx = (i + LAB_TABS.length) % LAB_TABS.length;
+      const winwin = $("labWinwin");
+
+      function applyContent() {
+        idx = newIdx;
+        tabs.querySelectorAll(".lab3d__tab").forEach((el, j) => el.setAttribute("aria-selected", j === idx));
+        if (pager) pager.querySelectorAll(".dot").forEach((d, j) => d.classList.toggle("on", j === idx));
+        const t = LAB_TABS[idx];
+        $("labFoot").textContent = t.code;
+        $("labContent").innerHTML = `
+          <h3 class="winwin__title">${t.title}</h3>
+          <p class="winwin__copy">${t.body}</p>
+          <div class="winwin__chips">${t.meta.map((m) => `<span>${m}</span>`).join("")}</div>
+        `;
+        winwin.classList.toggle("winwin--dark", idx % 2 === 1);
+      }
+
+      if (!winwin || idx === -1) { applyContent(); return; }
+
+      winwin.classList.add("flip-out");
+      setTimeout(() => {
+        applyContent();
+        winwin.classList.remove("flip-out");
+        winwin.classList.add("flip-in");
+        setTimeout(() => winwin.classList.remove("flip-in"), 240);
+      }, 200);
     }
     tabs.querySelectorAll(".lab3d__tab").forEach((el) => {
       el.addEventListener("click", () => setActive(+el.dataset.i));
@@ -3089,8 +3119,23 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
           <span>${n.read || ""}</span>
           <span class="note__cta">Read →</span>
         </div>
+        ${n.body ? `<p class="note__body">${n.body}</p>` : ""}
       </article>
     `).join("");
+
+    $("notesList").addEventListener("click", (e) => {
+      const note = e.target.closest(".note");
+      if (!note) return;
+      const wasOpen = note.classList.contains("note--open");
+      $("notesList").querySelectorAll(".note--open").forEach((el) => el.classList.remove("note--open"));
+      if (!wasOpen) note.classList.add("note--open");
+    });
+    $("notesList").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        const note = e.target.closest(".note");
+        if (note) note.click();
+      }
+    });
   }
 
   /* ASCII modal is wired via window.openAsciiModal (see module script below) */
@@ -3158,42 +3203,92 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     {
       scene: shadow, color: 'cool', no: '01', tag: 'second-brain',
       subtitle: 'Always on your side',
-      full_desc: 'AI-powered life analytics platform. Voice journaling pipeline, behavioral pattern detection, and a persistent memory graph. Built across 8 sprints — production-grade with WhatsApp integration, NLP engine, and Supabase backend.',
-      tech: ['Next.js', 'TypeScript', 'OpenAI', 'Supabase', 'WhatsApp API'],
-      links: [{ label: 'Landing Page', href: '#shadow-landing' }, { label: 'Case Study', href: '#shadow-case' }],
-      image: 'https://placehold.co/800x500/040a14/4db3ff?text=always+on+your+side&font=mono',
+      full_desc: 'External cognitive layer capturing life events, classifying into 12 life areas, and storing in pgvector RAG. Surfaces patterns via daily/weekly reports, ShadowOrb chat, and 4 Zod-validated intervention tools. Cost-aware router (mini vs 4o, sub-1ms). RLS-enforced on all 18 Supabase tables. 17 Playwright E2E specs.',
+      tech: ['Next.js 16', 'React 19', 'Supabase', 'pgvector', 'OpenAI', 'Zod', 'Playwright'],
+      decisions: [
+        'pgvector over Pinecone — one integration, fits Supabase, zero extra infra cost',
+        'Keyword router sub-1ms over LLM router — 200× faster, cheaper per call',
+        'Daily cost cap over per-request — simpler, sufficient for single-user dogfood',
+        '`server-only` import guards over edge runtime — keep secrets server-side',
+      ],
+      roadmap: 'S9: mobile · S10: Whisper voice · S11: invite flow + multi-user · Backlog: retry/backoff, per-min rate limit, data export',
+      links: [
+        { label: 'Landing Page', href: 'https://shadow-landing-sage.vercel.app' },
+        { label: 'Demo (private)', href: '#shadow-demo' },
+      ],
+      image: 'https://placehold.co/800x500/040a14/4db3ff?text=SHADOW+%E2%80%94+SECOND+BRAIN&font=mono',
     },
     {
       scene: aiEval, color: 'cool', no: '02', tag: 'evaluation',
-      subtitle: 'Prompt & agent testing workbench',
-      full_desc: '25-route Next.js evaluation tool for LLM outputs. Multi-model scoring, configurable criteria weighting, and interactive result visualization. Production-ready with full test coverage and export functionality.',
-      tech: ['Next.js', 'TypeScript', 'LLM Eval', 'Recharts', 'Vitest'],
-      links: [{ label: 'View Tool', href: '#ai-eval' }, { label: 'GitHub', href: '#github-ai-eval' }],
-      image: 'https://placehold.co/800x500/06060a/40cfff?text=AI+EVALUATION+TOOL&font=mono',
+      subtitle: 'LLM output testing workbench',
+      full_desc: 'UI reference + product spec for an LLM eval platform. 25 routes: rubric editor, claim groundedness heat map, regression compare, human review queue, markdown export, 8-article wiki. One rubric calls real gpt-4o-mini judge; rest demonstrates feature surface with mock data and honest DemoBanner.',
+      tech: ['Next.js 15', 'React 19', 'TypeScript', 'Tailwind', 'react-markdown'],
+      decisions: [
+        'Mock-first for UI speed — real LLM rubric added in S3 as proof point',
+        '25 route scope — show full product breadth before implementing depth',
+        'string.indexOf heat map — avoid LLM cost during demo, replace in S3',
+        'Honest DemoBanner — credibility over inflated claims',
+      ],
+      roadmap: 'S3: SQLite persist + auth + full LLM rubric pipeline · S5: case study with honest framing',
+      links: [
+        { label: 'Demo', href: 'https://ai-eval-tool.vercel.app' },
+        { label: 'Repo', href: 'https://github.com/Qalipso/ai-evaluation-tool' },
+      ],
+      image: 'https://placehold.co/800x500/06060a/36c5c5?text=AI+EVALUATION+TOOL&font=mono',
     },
     {
-      scene: promptops, color: 'cool', no: '03', tag: 'archive',
-      subtitle: 'Prompt registry & version control',
-      full_desc: 'PromptOps — prompt registry and version control system. pnpm monorepo: Hono REST API, Drizzle ORM, PostgreSQL, and Next.js dashboard. Sprint 5 shipped — full CRUD, tagging, diffing, and retrieval API.',
-      tech: ['Hono', 'Drizzle', 'Next.js', 'pnpm', 'PostgreSQL'],
-      links: [{ label: 'API Docs', href: '#promptops-api' }, { label: 'Dashboard', href: '#promptops-ui' }],
-      image: 'https://placehold.co/800x500/040a14/4db3ff?text=PROMPTOPS&font=mono',
+      scene: promptops, color: 'cool', no: '03', tag: 'prompt-registry',
+      subtitle: 'Prompt asset registry & versioning',
+      full_desc: 'A production-style registry for managing prompts as versioned software assets. PromptOps stores prompts, tracks immutable versions, renders templates deterministically, hashes outputs with SHA-256, and records lifecycle changes through an audit log. Built with Hono, Drizzle, Postgres, Next.js 15, CLI tooling, and 50+ unit tests.',
+      tech: ['Hono 4', 'Drizzle 0.36', 'Postgres', 'Next.js 15', 'Turbo', 'Vitest'],
+      decisions: [
+        'Custom template engine over Handlebars — type-safe, no runtime dep, fully tested',
+        'Hono over Express — edge-ready, smaller bundle, modern middleware API',
+        'Drizzle over Prisma — SQL-first, less magic, direct query control',
+        'Turbo monorepo — API/Web/CLI share domain types, one tsc --noEmit',
+      ],
+      roadmap: 'S2: diff viewer + 6 render-check types + public deploy + E2E · S5: 60s walkthrough + case study',
+      links: [
+        { label: 'Demo', href: 'https://promptops-tool.vercel.app' },
+        { label: 'Repo', href: 'https://github.com/Qalipso/promptops-tool' },
+      ],
+      image: 'https://placehold.co/800x500/040a14/d4903a?text=PROMPTOPS+REGISTRY&font=mono',
     },
     {
       scene: saas, color: 'cool', no: '04', tag: 'landing',
-      subtitle: 'Product story page',
-      full_desc: 'Product story landing page for Shadow — the AI second brain. Explains the concept, pipeline, and user journey through a clean narrative structure with motion-rich sections.',
-      tech: ['Next.js', 'Framer Motion', 'TypeScript', 'Tailwind'],
-      links: [{ label: 'View Landing', href: '#shadow-landing' }],
-      image: 'https://placehold.co/800x500/040a14/4db3ff?text=SHADOW+LANDING&font=mono',
+      subtitle: 'It followed you here.',
+      full_desc: 'Your shadow has always been with you — quietly trailing every step, holding what you\'ve let go of. Shady is that shadow given form: a small procedural figure that breathes, shifts through 11 emotional states, and leans toward your cursor. This landing doesn\'t explain Shadow. It introduces it. Because some things are better felt before they\'re understood.',
+      tech: ['Next.js 15.5', 'Framer Motion 11', 'TypeScript', 'Tailwind v3', 'Playwright'],
+      decisions: [
+        'Procedural SVG mascot over Lottie — bespoke, no JSON bloat, full state control',
+        'Static export over SSR — zero runtime cost, instant Vercel free-tier deploy',
+        'Supabase REST direct over API route — simpler, anon-key scoped',
+        'Custom spring physics over CSS transitions — character personality + magnetic pull',
+      ],
+      roadmap: 'S0: remove out/ from git (25MB) · S5: cross-link shadow case study + image optimization',
+      links: [
+        { label: 'Landing Page', href: 'https://shadow-landing-sage.vercel.app' },
+        { label: 'Repo', href: 'https://github.com/Qalipso/Shadow-Landing' },
+      ],
+      image: 'https://placehold.co/800x500/040a14/9b7ebd?text=SHADOW+LANDING&font=mono',
     },
     {
-      scene: ragMemory, color: 'cool', no: '05', tag: 'playground',
-      subtitle: 'Context becomes a map',
-      full_desc: 'Interactive RAG pipeline playground. Upload docs, chunk and embed in-browser, query semantic memory, visualize the knowledge graph, and run Ragas-style evaluations on retrieval quality.',
-      tech: ['Next.js', 'TypeScript', 'OpenAI', 'Vector DB', 'Ragas'],
-      links: [{ label: 'Open Playground', href: '#rag-memory' }],
-      image: 'https://placehold.co/800x500/040a14/4db3ff?text=RAG+MEMORY+PLAYGROUND&font=mono',
+      scene: ragMemory, color: 'cool', no: '05', tag: 'rag-playground',
+      subtitle: 'Side-by-side retrieval teaching sandbox',
+      full_desc: 'In-browser RAG sandbox: chunker → keyword BM25 or OpenAI embed retrieval toggle → heuristic and LLM-as-judge faithfulness eval. Side-by-side runner compares up to 4 pipeline configs on the same query with per-stage scores. No API key needed for keyword mode.',
+      tech: ['Next.js 15', 'React 18', 'TypeScript', 'Custom MVP engine', 'OpenAI embeddings'],
+      decisions: [
+        'In-browser engine over server-side — no API keys required for visitors',
+        'Keyword BM25 first — no backend cost, works offline, teaches fundamentals',
+        'Side-by-side runner over single run — comparison thinking is the core lesson',
+        'Custom evaluator over real Ragas — deterministic, no LLM cost during demo',
+      ],
+      roadmap: 'S4: real embeddings + cosine toggle + LLM-as-judge (gpt-4o-mini) · S5: case study',
+      links: [
+        { label: 'Demo', href: 'https://rag-playground-tool.vercel.app' },
+        { label: 'Repo', href: 'https://github.com/Qalipso/rag-memory-playground' },
+      ],
+      image: 'https://placehold.co/800x500/040a14/40c080?text=RAG+MEMORY+PLAYGROUND&font=mono',
     },
   ];
 
@@ -3212,20 +3307,39 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   let autoTimer = null;
 
   function buildInfoHTML(s) {
-    const tagsHtml  = s.tech.map(t => `<span class="am-fi-tag">${t}</span>`).join('');
-    const linksHtml = s.links.map(l => `<a href="${l.href}" class="am-fi-link" target="_blank">${l.label}</a>`).join('');
+    const tagsHtml = s.tech.map(t => `<span class="am-fi-tag">${t}</span>`).join('');
+    const decisionsHtml = s.decisions
+      ? `<div class="am-fi-section">
+           <div class="am-fi-section-label">Key decisions</div>
+           <ul class="am-fi-decisions">${s.decisions.map(d => `<li>${d}</li>`).join('')}</ul>
+         </div>`
+      : '';
+    const roadmapHtml = s.roadmap
+      ? `<div class="am-fi-section">
+           <div class="am-fi-section-label">Roadmap</div>
+           <p class="am-fi-roadmap">${s.roadmap}</p>
+         </div>`
+      : '';
+    const linksHtml = s.links.map(l =>
+      `<a href="${l.href}" class="am-fi-link" target="_blank" rel="noopener noreferrer">${l.label} <span>↗</span></a>`
+    ).join('');
     return `
       <div class="am-fi-layout">
         <div class="am-fi-image-wrap">
           <div class="am-fi-image-no">P/${s.no}</div>
           <img class="am-fi-image" src="${s.image}" alt="${s.scene.title}" loading="lazy" />
         </div>
-        <div>
+        <div class="am-fi-detail">
           <div class="am-fi-no">${s.no} · ${s.tag}</div>
           <p class="am-fi-sub">${s.subtitle}</p>
-          <div class="am-fi-divider"></div>
-          <div class="am-fi-tags">${tagsHtml}</div>
           <p class="am-fi-desc">${s.full_desc}</p>
+          <div class="am-fi-divider"></div>
+          <div class="am-fi-section">
+            <div class="am-fi-section-label">Stack</div>
+            <div class="am-fi-tags">${tagsHtml}</div>
+          </div>
+          ${decisionsHtml}
+          ${roadmapHtml}
           <div class="am-fi-links">${linksHtml}</div>
         </div>
       </div>`;
