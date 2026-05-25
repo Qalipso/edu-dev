@@ -1301,8 +1301,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   opacity: 0;
   transition: opacity .25s ease, color .25s ease;
 }
-.lab3d__nav--prev { left: 0; justify-content: flex-start; }
-.lab3d__nav--next { right: 0; justify-content: flex-end; }
+.lab3d__nav--prev { left: 20px; justify-content: flex-start; }
+.lab3d__nav--next { right: 20px; justify-content: flex-end; }
 .lab3d__nav > span {
   position: relative; z-index: 2;
   text-shadow: 0 0 18px rgba(77,179,255,0.55);
@@ -1323,14 +1323,14 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .lab3d__stage:has(.lab3d__nav--next:hover)::after  { opacity: 1; }
 .lab3d__pager {
   position: absolute; left: 50%; bottom: -28px; transform: translateX(-50%);
-  display: flex; gap: 8px; z-index: 4;
+  display: flex; gap: 10px; z-index: 4;
 }
 .lab3d__pager .dot {
-  width: 26px; height: 2px; background: var(--line-strong);
-  cursor: pointer; transition: background .25s, box-shadow .25s;
+  width: 32px; height: 3px; background: var(--line-strong);
+  cursor: pointer; transition: background .25s, box-shadow .25s, width .25s;
 }
 .lab3d__pager .dot.on {
-  background: var(--accent);
+  width: 48px; background: var(--accent);
   box-shadow: 0 0 8px rgba(77,179,255,0.45);
 }
 @media (max-width: 720px) {
@@ -1873,8 +1873,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     <div class="lab3d">
       <div class="lab3d__stage" id="labStage">
         <div class="lab3d__card" id="labCard">
-        <button class="lab3d__nav lab3d__nav--prev" id="labPrev" aria-label="Previous"><span>‹</span></button>
-        <button class="lab3d__nav lab3d__nav--next" id="labNext" aria-label="Next"><span>›</span></button>
           <div class="winwin" id="labWinwin">
             <div class="winwin__body">
               <div class="winwin__shine"></div>
@@ -2979,9 +2977,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     tabs.querySelectorAll(".lab3d__tab").forEach((el) => {
       el.addEventListener("click", () => setActive(+el.dataset.i));
     });
-    const prev = $("labPrev"), next = $("labNext");
-    if (prev) prev.addEventListener("click", () => setActive(idx - 1));
-    if (next) next.addEventListener("click", () => setActive(idx + 1));
     setActive(0);
 
     // 3D tilt
@@ -3027,6 +3022,14 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
       requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
+
+    // Click left half = prev, right half = next
+    card.addEventListener("click", (e) => {
+      const r = card.getBoundingClientRect();
+      if (e.clientX < r.left + r.width / 2) setActive(idx - 1);
+      else setActive(idx + 1);
+    });
+    card.style.cursor = "pointer";
   }
 
   function renderProcess() {
