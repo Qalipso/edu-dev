@@ -919,6 +919,108 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 @keyframes grid-drift { from { background-position: 0 0, 0 0; } to { background-position: 24px 24px, 24px 24px; } }
 @keyframes line-draw { 0% { transform: scaleX(0); transform-origin: left; } 60%,100% { transform: scaleX(1); transform-origin: left; } }
 @keyframes pipeline-flow { 0% { left: -10%; opacity: 0; } 6% { opacity: 1; } 94% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+@keyframes boot-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes scanline-roll { from { background-position: 0 0; } to { background-position: 0 4px; } }
+
+/* ============ BODY BACKGROUND SYSTEM ============ */
+body::before {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: radial-gradient(circle, rgba(216,232,255,0.065) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+body::after {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent,
+    transparent 3px,
+    rgba(4,12,24,0.07) 3px,
+    rgba(4,12,24,0.07) 4px
+  );
+  animation: scanline-roll 8s linear infinite;
+}
+
+/* ============ BUTTON HOVER ENHANCEMENTS ============ */
+.btn span {
+  display: inline-block;
+  transition: transform .3s cubic-bezier(.2,.7,.2,1);
+}
+.btn:hover span { transform: translateX(4px); }
+.btn:hover {
+  border-color: var(--paper);
+  box-shadow: 0 0 0 1px rgba(216,232,255,0.06), 0 0 18px rgba(216,232,255,0.03);
+}
+.btn--primary:hover {
+  box-shadow: 0 0 0 1px rgba(77,179,255,0.28), 0 0 24px rgba(77,179,255,0.1);
+}
+
+/* ============ NAV ACTIVE INDICATOR ============ */
+.nav__menu a::after {
+  content: ""; position: absolute; bottom: -2px; left: 0; right: 0; height: 1px;
+  background: var(--accent); transform: scaleX(0); transform-origin: left;
+  transition: transform .3s cubic-bezier(.2,.7,.2,1);
+}
+.nav__menu a.is-active { color: var(--accent); }
+.nav__menu a.is-active .num { color: var(--accent); }
+.nav__menu a.is-active::after { transform: scaleX(1); }
+
+/* ============ SECTION HEAD STAGGER REVEAL ============ */
+.section__head.reveal { opacity: 1 !important; transform: none !important; }
+.section__head.reveal .idx,
+.section__head.reveal h2,
+.section__head.reveal .sub {
+  opacity: 0; transform: translateY(16px);
+  transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1);
+}
+.section__head.reveal h2   { transition-delay: 80ms; }
+.section__head.reveal .sub { transition-delay: 160ms; }
+.section__head.reveal.in .idx,
+.section__head.reveal.in h2,
+.section__head.reveal.in .sub { opacity: 1; transform: none; }
+
+/* ============ SYSTEM CARD BORDER GLOW ============ */
+.system__ascii-host {
+  transition: transform .5s ease, box-shadow .4s ease;
+}
+.system:hover .system__ascii-host {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 1px rgba(77,179,255,0.18), 0 8px 32px -8px rgba(77,179,255,0.12);
+}
+/* File badge on hover */
+.system__ascii-host::after {
+  content: attr(data-file);
+  position: absolute; top: 10px; right: 10px;
+  font-family: var(--f-mono); font-size: 8.5px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: rgba(77,179,255,0.7);
+  background: rgba(4,10,20,0.82); padding: 3px 8px;
+  opacity: 0; transform: translateY(-4px);
+  transition: opacity .3s ease, transform .3s ease;
+  pointer-events: none;
+}
+.system:hover .system__ascii-host::after { opacity: 1; transform: none; }
+
+/* ============ CONTACT SIG BOOT SEQUENCE ============ */
+.contact__sig div { opacity: 0; }
+.contact__sig.booted div {
+  animation: boot-in .5s cubic-bezier(.2,.7,.2,1) both;
+}
+.contact__sig.booted div:nth-child(1) { animation-delay: 0ms; }
+.contact__sig.booted div:nth-child(2) { animation-delay: 140ms; }
+.contact__sig.booted div:nth-child(3) { animation-delay: 280ms; }
+.contact__sig.booted div:nth-child(4) { animation-delay: 420ms; }
+
+/* ============ PREFERS REDUCED MOTION ============ */
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after { display: none; }
+  .btn span { transition: none; }
+  .section__head.reveal .idx,
+  .section__head.reveal h2,
+  .section__head.reveal .sub { opacity: 1; transform: none; transition: none; }
+  .contact__sig div { opacity: 1; }
+  .contact__sig.booted div { animation: none; opacity: 1; }
+}
 
 /* CAPS preview artifact host */
 .caps__preview { position: relative; }
@@ -2853,7 +2955,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
           </div>
         </div>
         <div class="system__visual">
-          <div class="system__ascii-host">
+          <div class="system__ascii-host" data-file="${p.code}">
             <pre class="system__ascii" data-scene="${p.sceneIdx}" aria-hidden="true"></pre>
             <div class="system__ascii-label"><span>${p.label}</span><span>${p.code}</span></div>
           </div>
@@ -3153,6 +3255,35 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     setTimeout(() => els.forEach((el) => el.classList.add("in")), 2200);
   }
 
+  /* ============ NAV SCROLLSPY ============ */
+  function wireScrollspy() {
+    const sections = ["work","caps","process","about","notes","contact"].map((id) => document.getElementById(id)).filter(Boolean);
+    const links = document.querySelectorAll(".nav__menu a");
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        const id = e.target.id;
+        links.forEach((a) => {
+          const href = a.getAttribute("href");
+          a.classList.toggle("is-active", href === "#" + id);
+        });
+      });
+    }, { rootMargin: "-40% 0px -50% 0px", threshold: 0 });
+    sections.forEach((s) => io.observe(s));
+  }
+
+  /* ============ CONTACT BOOT SEQUENCE ============ */
+  function wireContactBoot() {
+    const sig = document.querySelector(".contact__sig");
+    if (!sig) return;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) { sig.classList.add("booted"); io.disconnect(); }
+      });
+    }, { threshold: 0.4 });
+    io.observe(sig);
+  }
+
   /* ============ SMOOTH ANCHOR SCROLL (vanilla) ============ */
   function wireSmoothScroll() {
     document.addEventListener("click", (e) => {
@@ -3178,6 +3309,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     ambientAscii($("contactBgCanvas"), { density: 0.40, reactive: false });
     wireReveal();
     wireSmoothScroll();
+    wireScrollspy();
+    wireContactBoot();
   }
 
   /* ============ BOOT ============
