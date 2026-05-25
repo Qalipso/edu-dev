@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PromptOps — Intro</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #03040a; overflow: hidden; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif; color: #fff; }
+  #intro {
+    position: fixed; inset: 0; z-index: 9999;
+    background: radial-gradient(140% 90% at 50% 55%, #0a0d18 0%, #04060c 45%, #000 100%);
+    transition: opacity 900ms cubic-bezier(.4,0,.2,1);
+  }
+  #intro.done { opacity: 0; pointer-events: none; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #bloom { mix-blend-mode: screen; filter: blur(7px) saturate(120%); opacity: 0.85; pointer-events: none; }
+  .grain {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity: 0.32; mix-blend-mode: overlay;
+  }
+  .vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 80% at 50% 50%, transparent 50%, rgba(0,0,0,0.85) 100%);
+  }
+  main {
+    position: relative; z-index: 1; min-height: 100%;
+    display: grid; place-items: center; color: #cfd3dc;
+    text-align: center; padding: 24px;
+  }
+  h1 { font-weight: 200; letter-spacing: 0.28em; font-size: clamp(28px, 5vw, 64px); margin: 0; }
+  p  { opacity: 0.55; letter-spacing: 0.42em; font-size: 11px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<main>
+  <div>
+    <h1>PROMPTOPS</h1>
+    <p>PROMPT REGISTRY  ·  VERSIONS  ·  RENDER CHECKS</p>
+  </div>
+</main>
+
+<div id="intro" aria-hidden="true">
+  <canvas id="base"></canvas>
+  <canvas id="bloom"></canvas>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+</div>
+
+<script>
+/* ============================================================
+   PROMPTOPS — cinematic intro v2 (4s)
+   Phases (normalized t = 0..1):
+     0.00 – 0.28  Token storm : glowing glyphs scattered, curl-noise flow
+     0.28 – 0.55  Convergence : tokens align into N horizontal version-streams
+     0.55 – 0.80  Branching   : streams emit assertion-rays (pass/fail glow)
+     0.80 – 1.00  Reveal      : streams collapse to a single luminous spine + title
+   ============================================================ */
+(() => {
+  const TITLE    = "PROMPTOPS";
+  const SUBTITLE = "PROMPT REGISTRY  ·  VERSIONS  ·  RENDER CHECKS";
+  const DURATION = 4000;
+  const FADE_OUT = 900;
+
+  const overlay = document.getElementById("intro");
+  const base    = document.getElementById("base");
+  const bloom   = document.getElementById("bloom");
+  const bctx    = base.getContext("2d");
+  const gctx    = bloom.getContext("2d");
+
+  let W=0,H=0,DPR=1,CX=0,CY=0;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    for (const c of [base, bloom]) {
+      c.style.width = W+"px"; c.style.height = H+"px";
+      c.width = Math.floor(W*DPR); c.height = Math.floor(H*DPR);
+    }
+    bctx.setTransform(DPR,0,0,DPR,0,0);
+    gctx.setTransform(DPR,0,0,DPR,0,0);
+    CX = W/2; CY = H/2;
+  }
+  resize(); window.addEventListener("resize", resize, { passive: true });
+
+  const rand  = (a,b)=>a+Math.random()*(b-a);
+  const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+  const lerp  = (a,b,t)=>a+(b-a)*t;
+  const easeOut   = t => 1-Math.pow(1-t,3);
+  const easeInOut = t => t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+  /* curl-noise field — fluid-looking flow */
+  function fbm(x,y,t) {
+    let v = 0, amp = 1, freq = 1;
+    for (let i=0; i<3; i++) {
+      v += Math.sin(x*0.013*freq + t*0.6) * Math.cos(y*0.011*freq + t*0.5) * amp;
+      amp *= 0.5; freq *= 2.1;
+    }
+    return v;
+  }
+  function curl(x,y,t) {
+    const e = 1.5;
+    return {
+      x: fbm(x, y+e, t) - fbm(x, y-e, t),
+      y: -(fbm(x+e, y, t) - fbm(x-e, y, t))
+    };
+  }
+
+  /* ---------- token particles ---------- */
+  const GLYPHS = "{}[]()<>=*#$@!?/\\|+-_:;.,▮▯◆◇◯▢▣⟨⟩⟦⟧⟪⟫1234567890abcdefABCDEF".split("");
+  const STREAMS = 5;
+  const COL = [
+    "rgba(120,200,255,",   // cyan
+    "rgba(180,140,255,",   // violet
+    "rgba(120,255,210,",   // mint
+    "rgba(255,180,120,",   // amber
+    "rgba(255,140,200,",   // pink
+  ];
+
+  const tokens = Array.from({length: 360}, () => {
+    const stream = (Math.random()*STREAMS)|0;
+    return {
+      x: rand(0, 1), y: rand(0, 1),       // normalized → set in init
+      vx: 0, vy: 0,
+      ch: GLYPHS[(Math.random()*GLYPHS.length)|0],
+      born: rand(0, 0.20),
+      seed: rand(0, 100),
+      stream,
+      size: rand(11, 16),
+      // target slot on its stream during phase 2
+      slot: rand(0, 1),
+    };
+  });
+  function initTokens() {
+    for (const k of tokens) {
+      k.x = rand(0, W); k.y = rand(0, H);
+      k.vx = rand(-30, 30); k.vy = rand(-30, 30);
+    }
+  }
+  let inited = false;
+
+  /* ---------- assertion rays ---------- */
+  let rays = null;
+  function buildRays(streamY) {
+    const arr = [];
+    for (let s=0; s<STREAMS; s++) {
+      // 4..7 rays per stream, scattered along x
+      const n = 4 + ((Math.random()*4)|0);
+      for (let i=0; i<n; i++) {
+        const x = lerp(W*0.15, W*0.85, i/(n-1) + rand(-0.04,0.04));
+        const y = streamY[s];
+        const len = rand(60, 120) * (Math.random() < 0.5 ? 1 : -1);
+        arr.push({
+          x1: x, y1: y, x2: x + rand(-30,30), y2: y + len,
+          born: 0.58 + Math.random()*0.16,
+          pass: Math.random() > 0.20,
+        });
+      }
+    }
+    return arr;
+  }
+
+  /* ---------- final title sampling ---------- */
+  let textPts = null;
+  function sampleText() {
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    const o = off.getContext("2d");
+    o.fillStyle = "#fff";
+    o.textAlign = "center"; o.textBaseline = "middle";
+    const fs = clamp(Math.min(W,H)*0.12, 48, 150);
+    o.font = `200 ${fs}px ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif`;
+    const spacing = fs * 0.22;
+    let total = 0;
+    for (const ch of TITLE) total += o.measureText(ch).width + spacing;
+    let x = CX - total/2 + spacing/2;
+    for (const ch of TITLE) {
+      const w = o.measureText(ch).width;
+      o.fillText(ch, x + w/2, CY - fs*0.05);
+      x += w + spacing;
+    }
+    o.font = `300 ${Math.max(11, fs*0.085)}px ui-sans-serif, system-ui, sans-serif`;
+    o.fillStyle = "rgba(255,255,255,0.85)";
+    o.fillText(SUBTITLE, CX, CY + fs*0.62);
+
+    const img = o.getImageData(0,0,W,H).data;
+    const pts = [];
+    const step = Math.max(2, Math.floor(Math.min(W,H)/360));
+    for (let y=0; y<H; y+=step) {
+      for (let x=0; x<W; x+=step) {
+        const i = (y*W + x)*4 + 3;
+        if (img[i] > 100) pts.push({ tx:x, ty:y, d: rand(0, 0.4) });
+      }
+    }
+    return pts;
+  }
+
+  /* ---------- main ---------- */
+  const start = performance.now();
+  let raf = 0;
+
+  function clear(c, a) {
+    c.globalCompositeOperation = "source-over";
+    c.fillStyle = `rgba(3,4,10,${a})`;
+    c.fillRect(0,0,W,H);
+  }
+
+  function frame(now) {
+    const tAbs = now - start;
+    const t = clamp(tAbs/DURATION, 0, 1);
+    const tnow = tAbs/1000;
+
+    clear(bctx, 0.22);
+    clear(gctx, 0.18);
+    bctx.globalCompositeOperation = "lighter";
+    gctx.globalCompositeOperation = "lighter";
+
+    // stream Y positions (5 streams stacked center-vertically)
+    const streamGap = Math.min(H*0.085, 56);
+    const streamY = [];
+    for (let s=0; s<STREAMS; s++) streamY.push(CY - (STREAMS-1)*streamGap/2 + s*streamGap);
+
+    /* ---- PHASE 1+2: TOKEN STORM → CONVERGENCE (0 – 0.55) ---- */
+    if (t < 0.85) {
+      if (!inited) { initTokens(); inited = true; }
+
+      bctx.textAlign = "center"; bctx.textBaseline = "middle";
+      const phase2 = clamp((t - 0.20)/0.35, 0, 1);    // pull strength toward target
+      const fontFade = clamp(1 - (t - 0.65)/0.20, 0, 1);
+
+      for (const k of tokens) {
+        if (t < k.born) continue;
+        // physics: curl during phase 1, attraction during phase 2
+        const c = curl(k.x*1.2 + k.seed*5, k.y*1.2, tnow);
+        const targetX = lerp(W*0.10, W*0.90, k.slot);
+        const targetY = streamY[k.stream];
+        const pull = phase2 * 4.5;
+        k.vx += (c.x*6) * (1 - phase2) + (targetX - k.x)*0.02 * pull;
+        k.vy += (c.y*6) * (1 - phase2) + (targetY - k.y)*0.06 * pull;
+        k.vx *= 0.93; k.vy *= 0.93;
+        k.x += k.vx * 0.016;
+        k.y += k.vy * 0.016;
+
+        const colBase = COL[k.stream];
+        const a = clamp(0.4 + phase2*0.5, 0, 1) * fontFade;
+
+        // crisp glyph on base
+        bctx.font = `${k.size}px ui-monospace, "JetBrains Mono", monospace`;
+        bctx.fillStyle = `${colBase}${a*0.85})`;
+        if (Math.random() < 0.03) k.ch = GLYPHS[(Math.random()*GLYPHS.length)|0];
+        bctx.fillText(k.ch, k.x, k.y);
+
+        // bloom glow
+        const gradR = k.size*1.4;
+        const g = gctx.createRadialGradient(k.x, k.y, 0, k.x, k.y, gradR);
+        g.addColorStop(0, `${colBase}${a*0.6})`);
+        g.addColorStop(1, `${colBase}0)`);
+        gctx.fillStyle = g;
+        gctx.beginPath(); gctx.arc(k.x, k.y, gradR, 0, Math.PI*2); gctx.fill();
+      }
+
+      // version-stream spine lines (appear during phase 2)
+      const spineA = phase2;
+      for (let s=0; s<STREAMS; s++) {
+        const y = streamY[s];
+        const grad = bctx.createLinearGradient(0, y, W, y);
+        grad.addColorStop(0,   `${COL[s]}0)`);
+        grad.addColorStop(0.5, `${COL[s]}${0.55*spineA*fontFade})`);
+        grad.addColorStop(1,   `${COL[s]}0)`);
+        bctx.fillStyle = grad;
+        bctx.fillRect(W*0.08, y-0.6, W*0.84, 1.2);
+
+        // bloom glow for spine
+        const gg = gctx.createLinearGradient(0, y, W, y);
+        gg.addColorStop(0,   `${COL[s]}0)`);
+        gg.addColorStop(0.5, `${COL[s]}${0.30*spineA*fontFade})`);
+        gg.addColorStop(1,   `${COL[s]}0)`);
+        gctx.fillStyle = gg;
+        gctx.fillRect(W*0.08, y-3, W*0.84, 6);
+
+        // version label v0.{s+1} (appears subtle)
+        if (spineA > 0.6) {
+          bctx.font = "11px ui-monospace, monospace";
+          bctx.textAlign = "left";
+          bctx.fillStyle = `${COL[s]}${0.6*fontFade})`;
+          bctx.fillText(`v0.${s+1}`, W*0.08 - 30, y);
+          bctx.textAlign = "center";
+        }
+      }
+    }
+
+    /* ---- PHASE 3: ASSERTION RAYS (0.55 – 0.80) ---- */
+    if (t > 0.54) {
+      if (!rays) rays = buildRays(streamY);
+      const fadeOut = clamp(1 - (t - 0.82)/0.08, 0, 1);
+      for (const r of rays) {
+        const local = clamp((t - r.born)/0.10, 0, 1);
+        if (local <= 0) continue;
+        const k = easeOut(local);
+        const ex = lerp(r.x1, r.x2, k);
+        const ey = lerp(r.y1, r.y2, k);
+        const col = r.pass ? "120,230,180" : "255,120,150";
+        const a = local * fadeOut * 0.95;
+        // bloom glow
+        gctx.strokeStyle = `rgba(${col},${a*0.5})`;
+        gctx.lineWidth = 5;
+        gctx.beginPath(); gctx.moveTo(r.x1, r.y1); gctx.lineTo(ex, ey); gctx.stroke();
+        // crisp line
+        bctx.strokeStyle = `rgba(${col},${a})`;
+        bctx.lineWidth = 1;
+        bctx.beginPath(); bctx.moveTo(r.x1, r.y1); bctx.lineTo(ex, ey); bctx.stroke();
+        if (local > 0.94) {
+          gctx.fillStyle = `rgba(${col},${a})`;
+          gctx.beginPath(); gctx.arc(ex, ey, 2.2, 0, Math.PI*2); gctx.fill();
+        }
+      }
+    }
+
+    /* ---- PHASE 4: REVEAL (0.80 – 1.00) ---- */
+    if (t > 0.78) {
+      if (!textPts) textPts = sampleText();
+      const phaseT = (t - 0.78) / 0.22;
+      const e = easeInOut(clamp(phaseT, 0, 1));
+      const ab = lerp(7, 0.6, e);
+      // Streams collapse into single bright spine
+      const collapseY = CY;
+      const collapseA = e;
+      for (let s=0; s<STREAMS; s++) {
+        const y = lerp(streamY[s], collapseY, e);
+        const opacity = (1 - e) * 0.6;
+        if (opacity > 0.02) {
+          const g = gctx.createLinearGradient(0, y, W, y);
+          g.addColorStop(0,   `${COL[s]}0)`);
+          g.addColorStop(0.5, `${COL[s]}${0.4*opacity})`);
+          g.addColorStop(1,   `${COL[s]}0)`);
+          gctx.fillStyle = g;
+          gctx.fillRect(W*0.08, y-3, W*0.84, 6);
+        }
+      }
+
+      for (let i=0; i<textPts.length; i++) {
+        const p = textPts[i];
+        const k = clamp((e - p.d)/(1 - p.d), 0, 1);
+        const a = lerp(0, 1, k);
+        // chroma
+        gctx.fillStyle = `rgba(255,90,160,${a*0.28})`;
+        gctx.fillRect(p.tx - ab, p.ty, 1.1, 1.1);
+        gctx.fillStyle = `rgba(90,180,255,${a*0.32})`;
+        gctx.fillRect(p.tx + ab, p.ty, 1.1, 1.1);
+        // crisp
+        bctx.fillStyle = `rgba(245,250,255,${a*0.95})`;
+        bctx.fillRect(p.tx, p.ty, 1.1, 1.1);
+      }
+    }
+
+    if (tAbs < DURATION) {
+      raf = requestAnimationFrame(frame);
+    } else {
+      overlay.classList.add("done");
+      setTimeout(() => { cancelAnimationFrame(raf); overlay.remove(); }, FADE_OUT + 50);
+    }
+  }
+
+  raf = requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

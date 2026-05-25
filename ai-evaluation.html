@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AI Evaluation — Intro</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #03040a; overflow: hidden; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif; color: #fff; }
+  #intro {
+    position: fixed; inset: 0; z-index: 9999;
+    background: radial-gradient(140% 90% at 50% 55%, #0a0d18 0%, #04060c 45%, #000 100%);
+    transition: opacity 900ms cubic-bezier(.4,0,.2,1);
+  }
+  #intro.done { opacity: 0; pointer-events: none; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #bloom { mix-blend-mode: screen; filter: blur(7px) saturate(120%); opacity: 0.85; pointer-events: none; }
+  .grain {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity: 0.32; mix-blend-mode: overlay;
+  }
+  .vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 80% at 50% 50%, transparent 50%, rgba(0,0,0,0.85) 100%);
+  }
+  main {
+    position: relative; z-index: 1; min-height: 100%;
+    display: grid; place-items: center; color: #cfd3dc;
+    text-align: center; padding: 24px;
+  }
+  h1 { font-weight: 200; letter-spacing: 0.30em; font-size: clamp(28px, 5vw, 64px); margin: 0; }
+  p  { opacity: 0.55; letter-spacing: 0.42em; font-size: 11px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<main>
+  <div>
+    <h1>AI EVALUATION</h1>
+    <p>OUTPUTS  ·  JUDGE  ·  VERDICT</p>
+  </div>
+</main>
+
+<div id="intro" aria-hidden="true">
+  <canvas id="base"></canvas>
+  <canvas id="bloom"></canvas>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+</div>
+
+<script>
+/* ============================================================
+   AI EVALUATION — cinematic intro v2 (4s)
+   Phases (normalized t = 0..1):
+     0.00 – 0.30  Output stream : 4 model token-streams flow inward from edges
+     0.30 – 0.60  Judge sphere  : streams collide at center forming a luminous orb
+     0.60 – 0.85  Score swarm   : orb emits scored particles into orbital ring
+     0.85 – 1.00  Verdict       : particles arc into a luminous bar + title reveal
+   ============================================================ */
+(() => {
+  const TITLE    = "AI EVALUATION";
+  const SUBTITLE = "OUTPUTS  ·  JUDGE  ·  VERDICT";
+  const DURATION = 4000;
+  const FADE_OUT = 900;
+
+  const overlay = document.getElementById("intro");
+  const base    = document.getElementById("base");
+  const bloom   = document.getElementById("bloom");
+  const bctx    = base.getContext("2d");
+  const gctx    = bloom.getContext("2d");
+
+  let W=0,H=0,DPR=1,CX=0,CY=0;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    for (const c of [base, bloom]) {
+      c.style.width = W+"px"; c.style.height = H+"px";
+      c.width = Math.floor(W*DPR); c.height = Math.floor(H*DPR);
+    }
+    bctx.setTransform(DPR,0,0,DPR,0,0);
+    gctx.setTransform(DPR,0,0,DPR,0,0);
+    CX = W/2; CY = H/2;
+  }
+  resize(); window.addEventListener("resize", resize, { passive: true });
+
+  const rand  = (a,b)=>a+Math.random()*(b-a);
+  const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+  const lerp  = (a,b,t)=>a+(b-a)*t;
+  const easeOut   = t => 1-Math.pow(1-t,3);
+  const easeInOut = t => t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+  /* 4 model streams entering from 4 edges, each with distinct hue */
+  const MODELS = [
+    { hue: 195, label: "M1" },   // cyan
+    { hue: 280, label: "M2" },   // violet
+    { hue: 145, label: "M3" },   // mint
+    { hue: 35,  label: "M4" },   // amber
+  ];
+
+  /* ---------- streaming tokens ---------- */
+  const tokens = [];
+  function buildTokens() {
+    tokens.length = 0;
+    const perModel = 120;
+    for (let m=0; m<4; m++) {
+      // entry edge: top, right, bottom, left
+      for (let i=0; i<perModel; i++) {
+        let sx, sy, ang;
+        const off = rand(-W*0.3, W*0.3);
+        if (m === 0) { sx = CX + off; sy = -30 - i*rand(2,6); ang = Math.PI/2; }
+        else if (m === 1) { sx = W + 30 + i*rand(2,6); sy = CY + off; ang = Math.PI; }
+        else if (m === 2) { sx = CX + off; sy = H + 30 + i*rand(2,6); ang = -Math.PI/2; }
+        else { sx = -30 - i*rand(2,6); sy = CY + off; ang = 0; }
+        tokens.push({
+          sx, sy,
+          x: sx, y: sy,
+          ang,
+          born: rand(0, 0.25),
+          life: rand(0.45, 0.7),
+          model: m,
+          size: rand(1.5, 3),
+          jitter: rand(0, Math.PI*2),
+        });
+      }
+    }
+  }
+  buildTokens();
+  window.addEventListener("resize", buildTokens);
+
+  /* ---------- score particles emitted from orb ---------- */
+  const scores = [];
+  let scoresBuilt = false;
+  function buildScores() {
+    scores.length = 0;
+    const N = 220;
+    for (let i=0; i<N; i++) {
+      const v = rand(0.30, 0.99);
+      const orbitR = Math.min(W,H)*rand(0.18, 0.32);
+      const a0 = rand(0, Math.PI*2);
+      scores.push({
+        v,
+        born: 0.60 + rand(0, 0.12),
+        // orbital path
+        ang: a0,
+        orbitR,
+        orbitSpeed: rand(0.6, 1.4) * (Math.random() < 0.5 ? -1 : 1),
+        // verdict target: bar at bottom
+        targetX: lerp(CX - Math.min(W*0.32, 320), CX + Math.min(W*0.32, 320), v),
+        targetY: CY + Math.min(H*0.28, 180),
+      });
+    }
+    scoresBuilt = true;
+  }
+
+  /* ---------- title text sampling ---------- */
+  let textPts = null;
+  function sampleText() {
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    const o = off.getContext("2d");
+    o.fillStyle = "#fff";
+    o.textAlign = "center"; o.textBaseline = "middle";
+    const fs = clamp(Math.min(W,H)*0.10, 42, 130);
+    o.font = `200 ${fs}px ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif`;
+    const spacing = fs * 0.16;
+    let total = 0;
+    for (const ch of TITLE) total += o.measureText(ch).width + spacing;
+    let x = CX - total/2 + spacing/2;
+    for (const ch of TITLE) {
+      const w = o.measureText(ch).width;
+      o.fillText(ch, x + w/2, CY - fs*0.6);
+      x += w + spacing;
+    }
+    o.font = `300 ${Math.max(11, fs*0.10)}px ui-sans-serif, system-ui, sans-serif`;
+    o.fillStyle = "rgba(255,255,255,0.85)";
+    o.fillText(SUBTITLE, CX, CY - fs*0.2);
+
+    const img = o.getImageData(0,0,W,H).data;
+    const pts = [];
+    const step = Math.max(2, Math.floor(Math.min(W,H)/360));
+    for (let y=0; y<H; y+=step) {
+      for (let x=0; x<W; x+=step) {
+        const i = (y*W + x)*4 + 3;
+        if (img[i] > 100) pts.push({ tx:x, ty:y, d: rand(0, 0.4) });
+      }
+    }
+    return pts;
+  }
+
+  /* ---------- main ---------- */
+  const start = performance.now();
+  let raf = 0;
+
+  function clear(c, a) {
+    c.globalCompositeOperation = "source-over";
+    c.fillStyle = `rgba(3,4,10,${a})`;
+    c.fillRect(0,0,W,H);
+  }
+
+  function frame(now) {
+    const tAbs = now - start;
+    const t = clamp(tAbs/DURATION, 0, 1);
+    const tnow = tAbs/1000;
+
+    clear(bctx, 0.22);
+    clear(gctx, 0.18);
+    bctx.globalCompositeOperation = "lighter";
+    gctx.globalCompositeOperation = "lighter";
+
+    /* ---- PHASE 1+2: STREAMS → JUDGE SPHERE (0 – 0.60) ---- */
+    if (t < 0.75) {
+      const conv = clamp((t - 0.05)/0.50, 0, 1);   // 0 = at edge, 1 = at center
+      for (const k of tokens) {
+        if (t < k.born) continue;
+        const e = easeInOut(conv);
+        const x = lerp(k.sx, CX + Math.cos(k.ang + k.jitter)*rand(2,12), e)
+                + Math.sin(tnow*2 + k.jitter)*4*(1-e);
+        const y = lerp(k.sy, CY + Math.sin(k.ang + k.jitter)*rand(2,12), e)
+                + Math.cos(tnow*2 + k.jitter)*4*(1-e);
+        k.x = x; k.y = y;
+
+        const m = MODELS[k.model];
+        const fade = clamp(1 - (t - 0.55)/0.10, 0, 1);
+        const a = 0.85 * fade * (e < 0.95 ? 1 : (1 - (e-0.95)/0.05));
+
+        // streaks (motion blur direction)
+        const dx = Math.cos(k.ang) * k.size * 4 * (1-e);
+        const dy = Math.sin(k.ang) * k.size * 4 * (1-e);
+        bctx.strokeStyle = `hsla(${m.hue},90%,72%,${a*0.9})`;
+        bctx.lineWidth = k.size * 0.7;
+        bctx.beginPath(); bctx.moveTo(x - dx, y - dy); bctx.lineTo(x, y); bctx.stroke();
+
+        // bloom dot
+        const r = k.size * 4;
+        const g = gctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `hsla(${m.hue},95%,75%,${a*0.7})`);
+        g.addColorStop(1, `hsla(${m.hue},95%,75%,0)`);
+        gctx.fillStyle = g;
+        gctx.beginPath(); gctx.arc(x, y, r, 0, Math.PI*2); gctx.fill();
+      }
+
+      // Judge sphere — forms after streams converge
+      const sphereT = clamp((t - 0.28)/0.32, 0, 1);
+      if (sphereT > 0) {
+        const sphereFade = clamp(1 - (t - 0.62)/0.10, 0, 1);
+        const baseR = lerp(4, Math.min(W,H)*0.085, easeOut(sphereT));
+        const pulse = baseR * (0.94 + Math.sin(tnow*4)*0.08);
+        // outer glow
+        const g1 = gctx.createRadialGradient(CX, CY, 0, CX, CY, pulse*3);
+        g1.addColorStop(0,   `rgba(255,255,255,${0.90*sphereFade})`);
+        g1.addColorStop(0.25,`rgba(200,220,255,${0.55*sphereFade})`);
+        g1.addColorStop(0.6, `rgba(120,160,255,${0.20*sphereFade})`);
+        g1.addColorStop(1,   `rgba(80,100,255,0)`);
+        gctx.fillStyle = g1;
+        gctx.beginPath(); gctx.arc(CX, CY, pulse*3, 0, Math.PI*2); gctx.fill();
+        // core
+        bctx.fillStyle = `rgba(245,250,255,${sphereFade})`;
+        bctx.beginPath(); bctx.arc(CX, CY, pulse*0.4, 0, Math.PI*2); bctx.fill();
+
+        // 4 inflow lines from each direction during convergence
+        if (sphereT < 0.95) {
+          for (let m=0; m<4; m++) {
+            const ang = m * Math.PI/2;
+            const sx = CX + Math.cos(ang)*Math.min(W,H)*0.45;
+            const sy = CY + Math.sin(ang)*Math.min(W,H)*0.45;
+            const hue = MODELS[m].hue;
+            const g2 = gctx.createLinearGradient(sx, sy, CX, CY);
+            g2.addColorStop(0, `hsla(${hue},90%,70%,0)`);
+            g2.addColorStop(1, `hsla(${hue},90%,80%,${0.4*sphereFade*sphereT})`);
+            gctx.strokeStyle = g2;
+            gctx.lineWidth = 3;
+            gctx.beginPath(); gctx.moveTo(sx, sy); gctx.lineTo(CX, CY); gctx.stroke();
+          }
+        }
+      }
+    }
+
+    /* ---- PHASE 3: SCORE SWARM (0.55 – 0.85) ---- */
+    if (t > 0.55) {
+      if (!scoresBuilt) buildScores();
+      const phase4 = clamp((t - 0.82)/0.16, 0, 1);   // 0..1: orbit → verdict bar
+      const e = easeInOut(phase4);
+      for (const s of scores) {
+        if (t < s.born) continue;
+        const local = clamp((t - s.born)/0.16, 0, 1);
+        const appear = easeOut(local);
+        // orbital position
+        const ang = s.ang + (tnow - s.born*4) * s.orbitSpeed;
+        const ox = CX + Math.cos(ang) * s.orbitR * appear;
+        const oy = CY + Math.sin(ang) * s.orbitR * appear;
+        // final verdict position
+        const x = lerp(ox, s.targetX, e);
+        const y = lerp(oy, s.targetY, e);
+        const hue = lerp(0, 145, s.v);  // red → green
+        const a = appear * lerp(0.9, 1, e);
+        gctx.fillStyle = `hsla(${hue},90%,70%,${a*0.85})`;
+        gctx.beginPath(); gctx.arc(x, y, 2.4, 0, Math.PI*2); gctx.fill();
+        bctx.fillStyle = `hsla(${hue},95%,82%,${a})`;
+        bctx.beginPath(); bctx.arc(x, y, 1.1, 0, Math.PI*2); bctx.fill();
+      }
+    }
+
+    /* ---- PHASE 4: VERDICT BAR + TITLE (0.82 – 1.00) ---- */
+    if (t > 0.80) {
+      const k = easeOut((t - 0.80)/0.20);
+
+      // verdict bar background
+      const barX = CX - Math.min(W*0.32, 320);
+      const barW = Math.min(W*0.64, 640);
+      const barY = CY + Math.min(H*0.28, 180) - 8;
+      const barH = 16;
+      bctx.globalCompositeOperation = "source-over";
+      bctx.fillStyle = `rgba(255,255,255,${0.04*k})`;
+      bctx.strokeStyle = `rgba(180,200,230,${0.30*k})`;
+      bctx.lineWidth = 1;
+      bctx.beginPath();
+      bctx.roundRect ? bctx.roundRect(barX, barY, barW, barH, 8) : bctx.rect(barX, barY, barW, barH);
+      bctx.fill(); bctx.stroke();
+      // overall verdict color (from average score ~0.75)
+      const overall = 0.78;
+      const fillW = (barW - 4) * overall * k;
+      const grd = bctx.createLinearGradient(barX, 0, barX+barW, 0);
+      grd.addColorStop(0,   "hsla(0,90%,55%,1)");
+      grd.addColorStop(0.5, "hsla(50,90%,60%,1)");
+      grd.addColorStop(1,   "hsla(145,90%,55%,1)");
+      bctx.fillStyle = grd;
+      bctx.globalAlpha = 0.92 * k;
+      bctx.beginPath();
+      bctx.roundRect ? bctx.roundRect(barX+2, barY+2, fillW, barH-4, 6) : bctx.rect(barX+2, barY+2, fillW, barH-4);
+      bctx.fill();
+      bctx.globalAlpha = 1;
+      // bloom under bar
+      const g = gctx.createLinearGradient(barX, 0, barX+barW, 0);
+      g.addColorStop(0,   "rgba(255,100,80,0)");
+      g.addColorStop(0.5, `rgba(220,180,80,${0.4*k})`);
+      g.addColorStop(1,   `rgba(100,255,180,${0.6*k})`);
+      gctx.fillStyle = g;
+      gctx.fillRect(barX-10, barY-10, barW+20, barH+20);
+
+      // title via sampled points
+      if (!textPts) textPts = sampleText();
+      const e = easeInOut(clamp((t - 0.80)/0.20, 0, 1));
+      const ab = lerp(7, 0.5, e);
+      bctx.globalCompositeOperation = "lighter";
+      for (let i=0; i<textPts.length; i++) {
+        const p = textPts[i];
+        const kk = clamp((e - p.d)/(1 - p.d), 0, 1);
+        const a = lerp(0, 1, kk);
+        gctx.fillStyle = `rgba(255,90,160,${a*0.28})`;
+        gctx.fillRect(p.tx - ab, p.ty, 1.1, 1.1);
+        gctx.fillStyle = `rgba(90,200,255,${a*0.32})`;
+        gctx.fillRect(p.tx + ab, p.ty, 1.1, 1.1);
+        bctx.fillStyle = `rgba(245,250,255,${a*0.95})`;
+        bctx.fillRect(p.tx, p.ty, 1.1, 1.1);
+      }
+    }
+
+    if (tAbs < DURATION) {
+      raf = requestAnimationFrame(frame);
+    } else {
+      overlay.classList.add("done");
+      setTimeout(() => { cancelAnimationFrame(raf); overlay.remove(); }, FADE_OUT + 50);
+    }
+  }
+
+  raf = requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

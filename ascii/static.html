@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ASCII Previews — Static Final Frames</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="page-header">
+    <h1>Project Previews · Final Frames</h1>
+    <p>Static keyframe view · all 5 scenes at t = duration</p>
+  </header>
+
+  <main class="gallery" id="gallery"></main>
+
+  <script type="module">
+    import { Grid } from './engine/grid.js';
+    import { shadow } from './scenes/shadow.js';
+    import { saas } from './scenes/saas.js';
+    import { aiEval } from './scenes/ai-eval.js';
+    import { ragMemory } from './scenes/rag-memory.js';
+    import { promptops } from './scenes/promptops.js';
+
+    const SCENES = [
+      { scene: shadow,    no: '01', tag: 'second-brain',  desc: 'Confusion → movement → signal → clarity.' },
+      { scene: saas,      no: '02', tag: 'delivery',      desc: 'Raw business requirements → structure → delivery logic.' },
+      { scene: aiEval,    no: '03', tag: 'evaluation',    desc: 'Outputs → judging → balance → reliable decision.' },
+      { scene: ragMemory, no: '04', tag: 'memory-graph',  desc: 'Fragments → retrieval → connections → structured memory.' },
+      { scene: promptops, no: '05', tag: 'archive',       desc: 'Prompt chaos → archive → version control → reusable system.' },
+    ];
+
+    const gallery = document.getElementById('gallery');
+
+    SCENES.forEach(({ scene, no, tag, desc }) => {
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="card-meta">
+          <span>${no} · ${scene.id}</span>
+          <span class="tag">#${tag}</span>
+        </div>
+        <div class="preview">
+          <pre class="ascii-screen" aria-hidden="true"></pre>
+        </div>
+        <div class="card-footer">
+          <h2>${scene.title}</h2>
+          <p>${scene.subtitle} · ${desc}</p>
+        </div>
+      `;
+      gallery.appendChild(card);
+
+      // Render final frame statically
+      const grid = new Grid(scene.cols, scene.rows);
+      scene.draw(grid, scene.duration - 0.05);
+      card.querySelector('.ascii-screen').textContent = grid.render();
+    });
+  </script>
+</body>
+</html>

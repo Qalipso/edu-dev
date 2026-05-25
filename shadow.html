@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SHADOW — Intro</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #03040a; overflow: hidden; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif; color: #fff; }
+  #intro {
+    position: fixed; inset: 0; z-index: 9999;
+    background: radial-gradient(140% 90% at 50% 55%, #0b1018 0%, #04060c 45%, #000 100%);
+    transition: opacity 900ms cubic-bezier(.4,0,.2,1);
+  }
+  #intro.done { opacity: 0; pointer-events: none; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* Compose layers: base (back), bloom (additive), aberration */
+  #bloom { mix-blend-mode: screen; filter: blur(6px) saturate(115%); opacity: 0.85; pointer-events: none; }
+  .grain {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.08 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity: 0.35; mix-blend-mode: overlay;
+  }
+  .vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 80% at 50% 50%, transparent 50%, rgba(0,0,0,0.85) 100%);
+  }
+  main {
+    position: relative; z-index: 1; min-height: 100%;
+    display: grid; place-items: center; color: #cfd3dc;
+    text-align: center; padding: 24px;
+  }
+  h1 { font-weight: 200; letter-spacing: 0.32em; font-size: clamp(28px, 5vw, 64px); margin: 0; }
+  p  { opacity: 0.55; letter-spacing: 0.42em; font-size: 11px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<main>
+  <div>
+    <h1>SHADOW</h1>
+    <p>AI SECOND BRAIN  ·  LIFE ANALYTICS  ·  PERSONAL OS</p>
+  </div>
+</main>
+
+<div id="intro" aria-hidden="true">
+  <canvas id="base"></canvas>
+  <canvas id="bloom"></canvas>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+</div>
+
+<script>
+/* ============================================================
+   SHADOW — cinematic intro v2 (4s)
+   Layered render: base canvas + bloom canvas (CSS-blurred screen).
+   Phases (normalized t = 0..1):
+     0.00 – 0.22  Ignition    : sparks born from base, advected by curl-noise field, ascend
+     0.22 – 0.50  Water       : flame collapses → real heightfield ripple (damped wave eq)
+     0.50 – 0.80  Fractal     : L-system curves bloom outward from ripple crests
+     0.80 – 1.00  Reveal      : particles condense into title with chromatic aberration
+   ============================================================ */
+(() => {
+  const TITLE    = "SHADOW";
+  const SUBTITLE = "AI SECOND BRAIN  ·  LIFE ANALYTICS  ·  PERSONAL OS";
+  const DURATION = 4000;
+  const FADE_OUT = 900;
+
+  const overlay = document.getElementById("intro");
+  const base    = document.getElementById("base");
+  const bloom   = document.getElementById("bloom");
+  const bctx    = base.getContext("2d",  { alpha: true });
+  const gctx    = bloom.getContext("2d", { alpha: true });
+
+  /* ---------- responsive + DPR ---------- */
+  let W=0, H=0, DPR=1, CX=0, CY=0;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    for (const c of [base, bloom]) {
+      c.style.width = W + "px"; c.style.height = H + "px";
+      c.width = Math.floor(W*DPR); c.height = Math.floor(H*DPR);
+    }
+    bctx.setTransform(DPR,0,0,DPR,0,0);
+    gctx.setTransform(DPR,0,0,DPR,0,0);
+    CX = W/2; CY = H/2;
+  }
+  resize(); window.addEventListener("resize", resize, { passive: true });
+
+  /* ---------- utils ---------- */
+  const rand  = (a,b)=>a+Math.random()*(b-a);
+  const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+  const lerp  = (a,b,t)=>a+(b-a)*t;
+  const easeOut    = t => 1-Math.pow(1-t,3);
+  const easeIn     = t => t*t*t;
+  const easeInOut  = t => t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+  /* ---------- cheap pseudo-noise (sin-based curl field) ---------- */
+  function fbm(x, y, t) {
+    // 3-octave sin-noise, cheap, smooth enough for visual flow
+    let v = 0, amp = 1, freq = 1;
+    for (let i=0; i<3; i++) {
+      v += Math.sin(x*0.013*freq + t*0.6) * Math.cos(y*0.011*freq + t*0.5) * amp;
+      amp *= 0.5; freq *= 2.1;
+    }
+    return v;
+  }
+  function curl(x, y, t) {
+    // curl of fbm — gives divergence-free flow (looks like fluid)
+    const e = 1.5;
+    const a = fbm(x, y+e, t) - fbm(x, y-e, t);
+    const b = fbm(x+e, y, t) - fbm(x-e, y, t);
+    return { x: a, y: -b };
+  }
+
+  /* ---------- phase 1: ember particles with physics ---------- */
+  const embers = Array.from({length: 220}, () => ({
+    x: 0, y: 0, vx: 0, vy: 0,
+    born: rand(0, 0.18),
+    life: rand(0.65, 1.1),
+    seed: rand(0, 100),
+    size: rand(0.6, 2.2),
+    hue: rand(18, 42),                  // amber→gold spread
+  }));
+  function initEmber(e) {
+    const a = rand(0, Math.PI*2);
+    const r = rand(0, 14);
+    e.x = CX + Math.cos(a)*r;
+    e.y = CY + Math.sin(a)*r;
+    e.vx = Math.cos(a) * rand(8, 20);
+    e.vy = Math.sin(a) * rand(8, 20) - 30;   // initial upward bias
+  }
+
+  /* ---------- phase 2: heightfield water ripple ---------- */
+  // Damped wave equation on a downsampled grid. Render as caustic rings.
+  const GW = 96, GH = 96;
+  let h0 = new Float32Array(GW*GH);
+  let h1 = new Float32Array(GW*GH);
+  function pokeWave(cx, cy, amp) {
+    const radius = 3;
+    for (let y=-radius; y<=radius; y++) for (let x=-radius; x<=radius; x++) {
+      const px = cx+x, py = cy+y;
+      if (px<0||py<0||px>=GW||py>=GH) continue;
+      const d2 = x*x + y*y;
+      h1[py*GW+px] += amp * Math.exp(-d2/3);
+    }
+  }
+  function stepWave() {
+    // 5-point Laplacian, damped
+    const damp = 0.985;
+    for (let y=1; y<GH-1; y++) {
+      for (let x=1; x<GW-1; x++) {
+        const i = y*GW+x;
+        const next = ((h1[i-1]+h1[i+1]+h1[i-GW]+h1[i+GW])*0.5 - h0[i]) * damp;
+        h0[i] = next;
+      }
+    }
+    const tmp = h0; h0 = h1; h1 = tmp;
+  }
+
+  /* ---------- phase 3: L-system fractal branches ---------- */
+  // Smoothed Bezier curves; grown over time; each branch has spawn delay.
+  let branches = null;
+  function buildFractal() {
+    const arr = [];
+    function grow(x, y, ang, len, depth, born) {
+      if (depth < 0 || len < 5) return;
+      const mx = x + Math.cos(ang)*len*0.5 + rand(-len*0.15, len*0.15);
+      const my = y + Math.sin(ang)*len*0.5 + rand(-len*0.15, len*0.15);
+      const ex = x + Math.cos(ang)*len;
+      const ey = y + Math.sin(ang)*len;
+      arr.push({
+        x1:x, y1:y, mx, my, x2:ex, y2:ey,
+        born, life: 0.10,
+        width: 0.4 + depth*0.5,
+        depth
+      });
+      // 2 children with golden-ratio spread, slight randomness
+      const spread = 0.38 + rand(-0.08, 0.08);
+      const next = born + 0.025;
+      grow(ex, ey, ang - spread, len*rand(0.62, 0.74), depth-1, next);
+      grow(ex, ey, ang + spread, len*rand(0.62, 0.74), depth-1, next);
+      // occasional 3rd branch (real plants are imperfect)
+      if (Math.random() < 0.28 && depth > 2) {
+        grow(ex, ey, ang + rand(-0.2, 0.2), len*rand(0.45, 0.6), depth-2, next+0.04);
+      }
+    }
+    const N = 7;                                 // seed count
+    const baseLen = Math.min(W,H) * 0.085;
+    for (let i=0; i<N; i++) {
+      const a = (i/N)*Math.PI*2 + rand(-0.18, 0.18);
+      // start slightly off-center for organic look
+      const x = CX + Math.cos(a)*8;
+      const y = CY + Math.sin(a)*8;
+      grow(x, y, a, baseLen*rand(0.9, 1.15), 7, 0.50);
+    }
+    return arr;
+  }
+
+  /* ---------- phase 4: title pixel sampling ---------- */
+  let textPts = null;
+  function sampleText() {
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    const o = off.getContext("2d");
+    o.fillStyle = "#fff";
+    o.textAlign = "center"; o.textBaseline = "middle";
+    const fs = clamp(Math.min(W,H)*0.14, 56, 180);
+    o.font = `200 ${fs}px ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif`;
+    // emulate letter-spacing
+    const spacing = fs * 0.28;
+    let total = 0;
+    for (const ch of TITLE) total += o.measureText(ch).width + spacing;
+    let x = CX - total/2 + spacing/2;
+    for (const ch of TITLE) {
+      const w = o.measureText(ch).width;
+      o.fillText(ch, x + w/2, CY - fs*0.05);
+      x += w + spacing;
+    }
+    o.font = `300 ${Math.max(11, fs*0.085)}px ui-sans-serif, system-ui, sans-serif`;
+    o.fillStyle = "rgba(255,255,255,0.85)";
+    o.fillText(SUBTITLE, CX, CY + fs*0.62);
+
+    const img = o.getImageData(0,0,W,H).data;
+    const pts = [];
+    const step = Math.max(2, Math.floor(Math.min(W,H)/360));
+    for (let y=0; y<H; y+=step) {
+      for (let x=0; x<W; x+=step) {
+        const i = (y*W + x)*4 + 3;
+        if (img[i] > 100) {
+          const ang = rand(0, Math.PI*2);
+          const dist = Math.min(W,H)*rand(0.35, 0.6);
+          pts.push({
+            tx:x, ty:y,
+            x: CX + Math.cos(ang)*dist,
+            y: CY + Math.sin(ang)*dist,
+            vx: 0, vy: 0,
+            d: rand(0, 0.4),
+          });
+        }
+      }
+    }
+    return pts;
+  }
+
+  /* ---------- main loop ---------- */
+  const start = performance.now();
+  let raf = 0;
+  let initedEmbers = false;
+  let pokedWaves = false;
+
+  function clearLayer(c, alpha) {
+    c.globalCompositeOperation = "source-over";
+    c.fillStyle = `rgba(3,4,10,${alpha})`;
+    c.fillRect(0,0,W,H);
+  }
+
+  function frame(now) {
+    const tAbs = now - start;
+    const t    = clamp(tAbs / DURATION, 0, 1);
+    const tnow = tAbs / 1000;
+
+    // Persistent trails — heavier on base, lighter on bloom for glow lag
+    clearLayer(bctx, 0.22);
+    clearLayer(gctx, 0.18);
+
+    bctx.globalCompositeOperation = "lighter";
+    gctx.globalCompositeOperation = "lighter";
+
+    /* ---- PHASE 1: IGNITION (0.00 – 0.22) ---- */
+    if (t < 0.35) {
+      if (!initedEmbers) { embers.forEach(initEmber); initedEmbers = true; }
+      const phaseFade = clamp(1 - (t - 0.20)/0.10, 0, 1);
+      for (const e of embers) {
+        const local = (t - e.born) / e.life;
+        if (local < 0 || local > 1) continue;
+        // curl-noise advection
+        const c = curl(e.x*1.4 + e.seed*7, e.y*1.4, tnow);
+        e.vx += c.x * 6;
+        e.vy += c.y * 6 - 45*0.016;       // buoyancy
+        e.vx *= 0.96; e.vy *= 0.96;
+        e.x += e.vx * 0.016;
+        e.y += e.vy * 0.016;
+
+        const a = (1 - local) * 0.95 * phaseFade;
+        const r = e.size * lerp(2.4, 0.6, local);
+        // base ember
+        bctx.fillStyle = `hsla(${e.hue},95%,68%,${a})`;
+        bctx.beginPath(); bctx.arc(e.x, e.y, r, 0, Math.PI*2); bctx.fill();
+        // bloom layer — brighter, larger
+        const g = gctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, r*9);
+        g.addColorStop(0,   `hsla(${e.hue+8},100%,80%,${a*0.95})`);
+        g.addColorStop(0.4, `hsla(${e.hue-6},100%,55%,${a*0.4})`);
+        g.addColorStop(1,   `hsla(${e.hue-20},100%,40%,0)`);
+        gctx.fillStyle = g;
+        gctx.beginPath(); gctx.arc(e.x, e.y, r*9, 0, Math.PI*2); gctx.fill();
+      }
+      // central flame core
+      const flameT = clamp(t/0.22, 0, 1);
+      const coreR  = lerp(2, 78, easeOut(flameT)) * (0.92 + Math.sin(tnow*8)*0.06);
+      const flameA = phaseFade;
+      const fg = gctx.createRadialGradient(CX, CY, 0, CX, CY, coreR);
+      fg.addColorStop(0,    `rgba(255,242,200,${0.95*flameA})`);
+      fg.addColorStop(0.3,  `rgba(255,160,80,${0.65*flameA})`);
+      fg.addColorStop(0.7,  `rgba(220,80,20,${0.25*flameA})`);
+      fg.addColorStop(1,    "rgba(180,20,5,0)");
+      gctx.fillStyle = fg;
+      gctx.beginPath(); gctx.arc(CX, CY, coreR, 0, Math.PI*2); gctx.fill();
+    }
+
+    /* ---- PHASE 2: WATER RIPPLE (0.22 – 0.50) ---- */
+    if (t > 0.20 && t < 0.62) {
+      if (!pokedWaves) {
+        // single big collapse → outward energy
+        pokeWave(GW>>1, GH>>1, 14);
+        pokedWaves = true;
+      }
+      // small follow-up pokes to add irregularity (real water surface)
+      if (t > 0.22 && t < 0.32 && Math.random() < 0.35) {
+        pokeWave((GW>>1) + ((Math.random()*8)|0)-4, (GH>>1) + ((Math.random()*8)|0)-4, rand(2, 6));
+      }
+      stepWave(); stepWave();   // 2 sub-steps per frame for stability
+
+      // Render heightfield as additive caustic rings on bloom layer
+      const cellW = W/GW, cellH = H/GH;
+      const phaseFade = clamp(Math.min((t-0.22)/0.08, 1 - (t-0.45)/0.12), 0, 1);
+      for (let y=1; y<GH-1; y+=1) {
+        for (let x=1; x<GW-1; x+=1) {
+          const v = h0[y*GW+x];
+          if (Math.abs(v) < 0.18) continue;
+          const a = clamp(Math.abs(v) * 0.10, 0, 0.55) * phaseFade;
+          const hue = v > 0 ? 195 : 220;
+          gctx.fillStyle = `hsla(${hue},90%,${65 + Math.min(20, Math.abs(v)*4)}%,${a})`;
+          gctx.fillRect(x*cellW, y*cellH, cellW+1, cellH+1);
+        }
+      }
+      // Faint vertical caustic streaks for "depth"
+      gctx.strokeStyle = `rgba(140,200,255,${0.06*phaseFade})`;
+      gctx.lineWidth = 1;
+      for (let i=0; i<10; i++) {
+        const x = (i/10 + (tnow*0.05 % 0.1)) * W;
+        gctx.beginPath(); gctx.moveTo(x, 0); gctx.lineTo(x, H); gctx.stroke();
+      }
+    }
+
+    /* ---- PHASE 3: FRACTAL (0.50 – 0.80) ---- */
+    if (t > 0.48) {
+      if (!branches) branches = buildFractal();
+      // fade out after 0.80
+      const fadeOut = clamp(1 - (t - 0.82)/0.10, 0, 1);
+      for (const b of branches) {
+        const tn = (t - b.born) / b.life;
+        if (tn < 0) continue;
+        const k = clamp(tn, 0, 1);
+        const ek = easeOut(k);
+        // intermediate end point along quadratic bezier
+        const u = ek;
+        const ex = lerp(lerp(b.x1, b.mx, u), lerp(b.mx, b.x2, u), u);
+        const ey = lerp(lerp(b.y1, b.my, u), lerp(b.my, b.y2, u), u);
+        const a = (0.4 + b.depth*0.09) * fadeOut * (k > 0 ? 1 : 0);
+
+        // draw bezier from start → current end (sample line)
+        // base crisp stroke
+        bctx.strokeStyle = `rgba(200,230,255,${a})`;
+        bctx.lineWidth = Math.max(0.5, b.width * 0.6);
+        bctx.beginPath();
+        bctx.moveTo(b.x1, b.y1);
+        bctx.quadraticCurveTo(b.mx, b.my, ex, ey);
+        bctx.stroke();
+
+        // bloom glow stroke (wider, low alpha)
+        gctx.strokeStyle = `hsla(195, 100%, 80%, ${a*0.45})`;
+        gctx.lineWidth = b.width * 3.5;
+        gctx.beginPath();
+        gctx.moveTo(b.x1, b.y1);
+        gctx.quadraticCurveTo(b.mx, b.my, ex, ey);
+        gctx.stroke();
+
+        // tip node spark
+        if (k > 0.93) {
+          const sp = (k - 0.93)/0.07;
+          gctx.fillStyle = `hsla(200,100%,92%,${a*sp})`;
+          gctx.beginPath(); gctx.arc(ex, ey, 1.6 + b.depth*0.3, 0, Math.PI*2); gctx.fill();
+        }
+      }
+    }
+
+    /* ---- PHASE 4: REVEAL (0.78 – 1.00) ---- */
+    if (t > 0.76) {
+      if (!textPts) textPts = sampleText();
+      const phaseT = (t - 0.76) / 0.24;
+      const e = easeInOut(clamp(phaseT, 0, 1));
+      // chromatic aberration offsets shrink as text settles
+      const ab = lerp(6, 0.6, e);
+      for (let i=0; i<textPts.length; i++) {
+        const p = textPts[i];
+        const k = clamp((e - p.d) / (1 - p.d), 0, 1);
+        const sk = easeOut(k);
+        const x = lerp(p.x, p.tx, sk);
+        const y = lerp(p.y, p.ty, sk);
+        const a = lerp(0, 1, k);
+        // R/B chroma offsets on bloom layer
+        gctx.fillStyle = `rgba(255,90,140,${a*0.30})`;
+        gctx.fillRect(x - ab, y, 1.1, 1.1);
+        gctx.fillStyle = `rgba(90,180,255,${a*0.32})`;
+        gctx.fillRect(x + ab, y, 1.1, 1.1);
+        // crisp white on base
+        bctx.fillStyle = `rgba(245,250,255,${a*0.95})`;
+        bctx.fillRect(x, y, 1.1, 1.1);
+      }
+    }
+
+    if (tAbs < DURATION) {
+      raf = requestAnimationFrame(frame);
+    } else {
+      overlay.classList.add("done");
+      setTimeout(() => {
+        cancelAnimationFrame(raf);
+        overlay.remove();
+      }, FADE_OUT + 50);
+    }
+  }
+
+  raf = requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

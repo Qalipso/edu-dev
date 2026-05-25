@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ASCII Project Previews — Portfolio</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="page-header">
+    <h1>Project Previews · ASCII Engine</h1>
+    <p>5 scenes · 3–4s each · hover to replay · click fullscreen to open</p>
+  </header>
+
+  <main class="gallery" id="gallery"></main>
+
+  <!-- Fullscreen modal: two phases — animation then project info -->
+  <div class="fs-modal" id="fs-modal" aria-hidden="true">
+    <div class="fs-bar">
+      <div>
+        <span class="title" id="fs-title"></span>
+        <span class="tag" id="fs-tag"></span>
+      </div>
+      <div class="fs-actions">
+        <button class="ctrl" id="fs-replay" type="button">replay intro</button>
+        <button class="ctrl" id="fs-close" type="button">close · esc</button>
+      </div>
+    </div>
+
+    <!-- Phase 1: animation -->
+    <div class="fs-stage" id="fs-stage">
+      <pre class="ascii-screen" id="fs-screen" aria-hidden="true"></pre>
+    </div>
+
+    <!-- Phase 2: project info page -->
+    <div class="fs-info" id="fs-info"></div>
+  </div>
+
+  <script type="module">
+    import { createPlayer, attachAuto } from './engine/timeline.js';
+    import { shadow }    from './scenes/shadow.js';
+    import { saas }      from './scenes/saas.js';
+    import { aiEval }    from './scenes/ai-eval.js';
+    import { ragMemory } from './scenes/rag-memory.js';
+    import { promptops } from './scenes/promptops.js';
+
+    // ── Project data ──────────────────────────────────────────────────────
+    const SCENES = [
+      {
+        scene: shadow,
+        no: '01', tag: 'second-brain', color: 'warm',
+        desc: 'Confusion → movement → signal → clarity.',
+        full_desc: 'AI-powered life analytics platform. Voice journaling pipeline, behavioral pattern detection, and a persistent memory graph. Built across 8 sprints — production-grade with WhatsApp integration, NLP engine, and Supabase backend.',
+        tech: ['Next.js', 'TypeScript', 'OpenAI', 'Supabase', 'WhatsApp API'],
+        links: [
+          { label: 'Landing Page', href: '#shadow-landing' },
+          { label: 'Case Study',   href: '#shadow-case' },
+        ],
+        image: 'https://placehold.co/800x500/06060a/ffaa44?text=SHADOW+%2F+AI+ANALYTICS&font=mono',
+      },
+      {
+        scene: saas,
+        no: '02', tag: 'delivery', color: 'violet',
+        desc: 'Raw business requirements → structure → delivery logic.',
+        full_desc: 'SaaS delivery case study — architected end-to-end flow for complex B2B delivery scenarios. Docs-first methodology with full architecture documentation, case-flow diagrams, and decision tree design.',
+        tech: ['Architecture', 'Case Design', 'Docs-First', 'B2B Flows'],
+        links: [
+          { label: 'View Case', href: '#saas-case' },
+        ],
+        image: 'https://placehold.co/800x500/06060a/c080ff?text=SAAS+DELIVERY&font=mono',
+      },
+      {
+        scene: aiEval,
+        no: '03', tag: 'evaluation', color: 'cool',
+        desc: 'Outputs → judging → balance → reliable decision.',
+        full_desc: '25-route Next.js evaluation tool for LLM outputs. Multi-model scoring, configurable criteria weighting, and interactive result visualization. Production-ready with full test coverage and export functionality.',
+        tech: ['Next.js', 'TypeScript', 'LLM Eval', 'Recharts', 'Vitest'],
+        links: [
+          { label: 'View Tool', href: '#ai-eval' },
+          { label: 'GitHub',    href: '#github-ai-eval' },
+        ],
+        image: 'https://placehold.co/800x500/06060a/40cfff?text=AI+EVALUATION+TOOL&font=mono',
+      },
+      {
+        scene: ragMemory,
+        no: '04', tag: 'memory-graph', color: 'teal',
+        desc: 'Fragments → retrieval → connections → structured memory.',
+        full_desc: 'RAG memory playground with live knowledge graph visualization. Chunking engine, semantic vector retrieval, D3 force-directed graph, and full query/debug panel. MVP pipeline from file upload to grounded answer.',
+        tech: ['Next.js', 'TypeScript', 'Vector DB', 'D3.js', 'OpenAI'],
+        links: [
+          { label: 'Live Demo', href: '#rag-demo' },
+          { label: 'GitHub',    href: '#github-rag' },
+        ],
+        image: 'https://placehold.co/800x500/06060a/40ffcc?text=RAG+MEMORY+PLAYGROUND&font=mono',
+      },
+      {
+        scene: promptops,
+        no: '05', tag: 'archive', color: 'electric',
+        desc: 'Prompt chaos → archive → version control → reusable system.',
+        full_desc: 'PromptOps — prompt registry and version control system. pnpm monorepo: Hono REST API, Drizzle ORM, PostgreSQL, and Next.js dashboard. Sprint 5 shipped — full CRUD, tagging, diffing, and retrieval API.',
+        tech: ['Hono', 'Drizzle', 'Next.js', 'pnpm', 'PostgreSQL'],
+        links: [
+          { label: 'API Docs',  href: '#promptops-api' },
+          { label: 'Dashboard', href: '#promptops-ui' },
+        ],
+        image: 'https://placehold.co/800x500/06060a/ff5773?text=PROMPTOPS&font=mono',
+      },
+    ];
+
+    // ── DOM refs ──────────────────────────────────────────────────────────
+    const gallery  = document.getElementById('gallery');
+    const fsModal  = document.getElementById('fs-modal');
+    const fsStage  = document.getElementById('fs-stage');
+    const fsInfo   = document.getElementById('fs-info');
+    const fsScreen = document.getElementById('fs-screen');
+    const fsTitle  = document.getElementById('fs-title');
+    const fsTag    = document.getElementById('fs-tag');
+    const fsClose  = document.getElementById('fs-close');
+    const fsReplay = document.getElementById('fs-replay');
+
+    let fsPlayer  = null;
+    let activeIdx = -1;
+    let fsPhase   = 'anim'; // 'anim' | 'info'
+
+    // ── Build info HTML ───────────────────────────────────────────────────
+    function buildInfoHTML(s) {
+      const tagsHtml  = s.tech.map(t => `<span class="fi-tag">${t}</span>`).join('');
+      const linksHtml = s.links.map(l =>
+        `<a href="${l.href}" class="fi-link" target="_blank">${l.label}</a>`
+      ).join('');
+      return `
+        <div class="fi-layout">
+          <div class="fi-image-wrap">
+            <div class="fi-image-no">P/${s.no}</div>
+            <img class="fi-image" src="${s.image}" alt="${s.scene.title}" loading="lazy" />
+          </div>
+          <div class="fi-content">
+            <div class="fi-no">${s.no} · ${s.tag}</div>
+            <h2 class="fi-title">${s.scene.title}</h2>
+            <p class="fi-sub">${s.scene.subtitle}</p>
+            <div class="fi-divider"></div>
+            <div class="fi-tags">${tagsHtml}</div>
+            <p class="fi-desc">${s.full_desc}</p>
+            <div class="fi-links">${linksHtml}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ── Display helpers (avoid inline-style vs CSS-class conflicts) ────────
+    function showStage()  {
+      fsStage.style.opacity = '1';
+      fsStage.style.display = 'flex';
+      fsStage.style.pointerEvents = '';
+    }
+    function hideStage() {
+      fsStage.style.opacity = '0';
+      fsStage.style.pointerEvents = 'none';
+      setTimeout(() => { fsStage.style.display = 'none'; }, 500);
+    }
+    function showInfoPanel() {
+      fsInfo.style.display = 'flex';
+      fsInfo.style.opacity = '0';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fsInfo.style.opacity = '1';
+      }));
+    }
+    function hideInfoPanel() {
+      fsInfo.style.opacity = '0';
+      setTimeout(() => {
+        fsInfo.style.display = 'none';
+        fsInfo.innerHTML = '';
+      }, 400);
+    }
+
+    // ── Transition: animation → info page ────────────────────────────────
+    function showInfo(idx) {
+      if (fsPhase === 'info') return;
+      fsPhase = 'info';
+      fsInfo.innerHTML = buildInfoHTML(SCENES[idx]);
+      hideStage();
+      setTimeout(() => showInfoPanel(), 500);
+    }
+
+    // ── Transition: info → animation ─────────────────────────────────────
+    function returnToAnim(idx) {
+      hideInfoPanel();
+      setTimeout(() => {
+        showStage();
+        fsPhase = 'anim';
+        if (fsPlayer) fsPlayer.pause();
+        fsPlayer = createPlayer(fsScreen, SCENES[idx].scene, {
+          onComplete: () => showInfo(idx),
+        });
+        fsPlayer.play();
+      }, 450);
+    }
+
+    // ── Open fullscreen modal ─────────────────────────────────────────────
+    function openFs(idx) {
+      const { scene, no, tag, color } = SCENES[idx];
+      activeIdx = idx;
+      fsTitle.textContent   = `${no} · ${scene.title}`;
+      fsTag.textContent     = `#${tag}`;
+      fsModal.dataset.color = color;
+
+      // Reset to animation phase — clear all inline styles
+      fsPhase = 'anim';
+      fsStage.style.cssText = 'display:flex; opacity:1;';
+      fsInfo.style.cssText  = 'display:none; opacity:0;';
+      fsInfo.innerHTML = '';
+
+      if (fsPlayer) fsPlayer.pause();
+      fsPlayer = createPlayer(fsScreen, scene, {
+        onComplete: () => showInfo(idx),
+      });
+
+      fsModal.classList.add('open');
+      fsModal.setAttribute('aria-hidden', 'false');
+      fsPlayer.play();
+    }
+
+    // ── Close modal ───────────────────────────────────────────────────────
+    function closeFs() {
+      fsModal.classList.remove('open');
+      fsModal.setAttribute('aria-hidden', 'true');
+      if (fsPlayer) { fsPlayer.pause(); fsPlayer = null; }
+      activeIdx = -1;
+      fsPhase   = 'anim';
+      // Reset for next open
+      fsStage.style.cssText = 'display:flex; opacity:1;';
+      fsInfo.style.cssText  = 'display:none; opacity:0;';
+      fsInfo.innerHTML = '';
+    }
+
+    // ── Controls ──────────────────────────────────────────────────────────
+    fsClose.addEventListener('click', closeFs);
+
+    fsReplay.addEventListener('click', () => {
+      if (activeIdx < 0) return;
+      if (fsPhase === 'info') {
+        // Switch back to animation
+        returnToAnim(activeIdx);
+      } else {
+        if (fsPlayer) fsPlayer.replay();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeFs();
+      if ((e.key === 'f' || e.key === 'F') && activeIdx >= 0) {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      }
+    });
+
+    // Click backdrop to close
+    fsModal.addEventListener('click', (e) => {
+      if (e.target === fsModal) closeFs();
+    });
+
+    // ── Build gallery cards ────────────────────────────────────────────────
+    SCENES.forEach(({ scene, no, tag, desc, color }, idx) => {
+      const card = document.createElement('article');
+      card.className   = 'card';
+      card.dataset.color   = color;
+      card.dataset.sceneId = scene.id;
+
+      card.innerHTML = `
+        <div class="card-meta">
+          <span>${no} · ${scene.id}</span>
+          <span class="tag">#${tag}</span>
+        </div>
+        <div class="preview">
+          <div class="controls">
+            <button class="ctrl" data-act="replay" type="button">replay</button>
+            <button class="ctrl" data-act="fs"     type="button">fullscreen</button>
+          </div>
+          <pre class="ascii-screen" aria-hidden="true"></pre>
+        </div>
+        <div class="card-footer">
+          <h2>${scene.title}</h2>
+          <p>${scene.subtitle} · ${desc}</p>
+        </div>
+      `;
+      gallery.appendChild(card);
+
+      const pre    = card.querySelector('.ascii-screen');
+      const player = createPlayer(pre, scene);
+      attachAuto(card, player);
+
+      card.querySelectorAll('.ctrl').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (btn.dataset.act === 'replay') player.replay();
+          else if (btn.dataset.act === 'fs') openFs(idx);
+        });
+      });
+
+      // Double-click preview area → open fullscreen
+      card.querySelector('.preview').addEventListener('dblclick', () => openFs(idx));
+    });
+  </script>
+</body>
+</html>
