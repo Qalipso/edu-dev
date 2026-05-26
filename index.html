@@ -910,11 +910,13 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   display: inline-flex; align-items: center; gap: 12px;
 }
 .note__body {
-  display: none; grid-column: 1/-1; margin-top: 12px;
+  display: none; grid-column: 1/-1; margin-top: 14px;
   font-size: 14px; line-height: 1.65; color: var(--paper-dim);
   border-left: 2px solid var(--accent); padding-left: 16px;
-  max-width: 56ch;
+  max-width: 64ch;
 }
+.note__body p { margin: 0 0 12px; }
+.note__body p:last-child { margin-bottom: 0; }
 .note--open .note__body { display: block; }
 .note--open .note__cta { color: var(--accent); }
 .note--open { background: rgba(77,179,255,0.025); }
@@ -1610,7 +1612,10 @@ body::before {
   transition: border-color .25s, transform .25s, box-shadow .25s;
   grid-template-columns: none; grid-column: span 1;
   cursor: pointer;
+  min-width: 0;
 }
+.note--open { grid-column: 1 / -1; cursor: default; }
+.note--open .note__body { display: block; }
 .note:hover, .note:focus-within {
   border-color: var(--accent); transform: translateY(-2px);
   box-shadow: 0 18px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(77,179,255,0.18);
@@ -2269,9 +2274,9 @@ body::before {
 <!-- ============ BEST-FIT ROLES ============ -->
 <section class="fit" id="fit" aria-label="Best fit roles">
   <div class="fit__head">
-    <div class="idx">/ fit</div>
-    <h2>Where I fit</h2>
-    <p class="sub">Three lanes. One person. Pick the angle that matches your hire.</p>
+    <div class="idx">/ tracks</div>
+    <h2>Tracks</h2>
+    <p class="sub">Three directions. One operator. Pick the lane that matches your hire.</p>
   </div>
   <div class="fit__grid">
     <article class="fit__card">
@@ -2432,7 +2437,7 @@ body::before {
     <div class="contact__sig">
       <div>Response<span>~24h</span></div>
       <div>Location<span>Montevideo · UYT</span></div>
-      <div>Phone<span>+598 94 786 877</span></div>
+      <div>Languages<span>EN · RU · ES</span></div>
       <div>Status<span style="color:var(--accent)">Open to roles</span></div>
     </div>
   </div>
@@ -2806,9 +2811,42 @@ body::before {
   };
 
   const NOTES = [
-    { code:"N/01", date:"2026.04", t:"Prompt scoring ≠ PromptOps",        s:"Version history, specs and regression beat one-shot scores.", body:"A score tells you how a prompt performed once. A version history tells you if it degraded, and why. PromptOps treats prompts as software: immutable versions, SHA-256 render hashing, lifecycle states. Score is a metric. Spec + regression is a system.", tags:["promptops","eval","infra"], status:"live",  rev:"v2", read:"4 min" },
-    { code:"N/02", date:"2026.03", t:"Evaluating AI without fake numbers", s:"When rubrics, golden sets and LLM-as-judge earn their keep.",  body:"Most AI eval dashboards show numbers that look precise but mean nothing. Real eval has three layers: human-written rubrics (what correct looks like), a golden set (known inputs with known outputs), and LLM-as-judge for scale. Skip any layer and you're measuring confidence, not quality.", tags:["eval","rubric","judge"],     status:"live",  rev:"v3", read:"6 min" },
-    { code:"N/03", date:"2026.02", t:"Second brain as personal OS",        s:"Capture is easy. Structure is the product.",                  body:"Everyone captures. Notion, voice memos, starred tweets. The gap is structure: what gets surfaced, when, and why. Shadow's insight: the brain doesn't need more storage — it needs a retrieval layer that knows context. pgvector + daily digest + pattern detection. Capture is table stakes.", tags:["shadow","memory","os"],      status:"draft", rev:"v1", read:"3 min" },
+    { code:"N/01", date:"2026.04", t:"Prompt scoring ≠ PromptOps",
+      s:"Version history, specs and regression beat one-shot scores.",
+      tags:["promptops","eval","infra"], status:"live", rev:"v2", read:"4 min",
+      body:
+`A single score tells you how a prompt performed once. It does not tell you why it broke yesterday, or what changed since last week. That is the gap PromptOps fills.
+
+Treat prompts as software. Each version is immutable. Each render produces a SHA-256 hash, so you know exactly which bytes the model saw. Lifecycle states (draft → staged → live → archived) replace ad-hoc Google Docs. Audit logs let you replay any production call.
+
+A score is a metric. Spec + regression is a system. The score answers "how good?" — but only versioning, render hashing, and a regression suite answer "how stable?" — and stability is what production cares about.
+
+The practical kit: a registry table keyed by name+version, a render function that returns string + hash, a regression runner that diffs hashes across versions, and a small CLI to promote/rollback. The whole loop fits in one Postgres schema and a Hono router.`
+    },
+    { code:"N/02", date:"2026.03", t:"Evaluating AI without fake numbers",
+      s:"When rubrics, golden sets and LLM-as-judge earn their keep.",
+      tags:["eval","rubric","judge"], status:"live", rev:"v3", read:"6 min",
+      body:
+`Most LLM eval dashboards show numbers that look precise but mean nothing. 87.4% factuality on what corpus? Judged by which model? Compared to which baseline? Without those answers, a number is just decoration.
+
+Real eval has three layers. First, human-written rubrics — short, opinionated definitions of what "correct" looks like for this task. A rubric is a contract. Second, a golden set — known inputs with known outputs, hand-curated, version-controlled, treated like test fixtures. Third, LLM-as-judge for scale — a stronger model graded against the rubric, calibrated to human ratings on a sampled subset.
+
+Skip any layer and you are measuring confidence, not quality. No rubric: the judge invents its own definition. No golden set: you cannot detect regression. No judge: you do not scale beyond a hundred manual ratings.
+
+Two anti-patterns to avoid. First, "vibe checks" with no rubric — they regress silently. Second, single-shot benchmark scores with no golden set — they cannot tell you that yesterday's prompt change broke factuality but improved tone. Real eval is boring, slow, and structured. That is the point.`
+    },
+    { code:"N/03", date:"2026.02", t:"Second brain as personal OS",
+      s:"Capture is easy. Structure is the product.",
+      tags:["shadow","memory","os"], status:"draft", rev:"v1", read:"3 min",
+      body:
+`Everyone captures. Notion, voice memos, starred tweets, screenshots, half-finished docs. Capture is solved. The gap is structure: what gets surfaced, when, and why.
+
+Shadow's bet: the brain does not need more storage. It needs a retrieval layer that knows context — what area of life this belongs to (12 areas, classified at write time), what other entries it relates to (pgvector cosine over 1536-d embeddings), and what pattern emerges over days (daily and weekly reports).
+
+Three primitives form the OS. Capture (text, voice, photo) writes to a Postgres row plus an embedding. Recall is a chat that routes between cheap mini and 4o on cost. Reflect is a scheduled report that surfaces patterns you would not notice in raw logs.
+
+The hard part is not vectors. It is opinionated defaults: which areas matter, when to nudge, what to hide. A second brain that asks you to configure everything is a worse Notion. A second brain that knows when to interrupt is a product.`
+    },
   ];
 
   /* ============================================================
@@ -3637,7 +3675,7 @@ body::before {
           <span>${n.read || ""}</span>
           <span class="note__cta">Read →</span>
         </div>
-        ${n.body ? `<p class="note__body">${n.body}</p>` : ""}
+        ${n.body ? `<div class="note__body">${n.body.split(/\n\n+/).map(p => `<p>${p.trim()}</p>`).join("")}</div>` : ""}
       </article>
     `).join("");
 
