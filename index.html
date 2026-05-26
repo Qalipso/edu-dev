@@ -1011,13 +1011,28 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 #am-stage {
   flex: 1; display: flex; align-items: center; justify-content: center;
   padding: 12px; transition: opacity 0.5s ease; overflow: hidden;
+  min-height: 0;
 }
 #am-screen {
   font-size: 9px; line-height: 1.18;
   color: #4db3ff; white-space: pre;
   font-family: 'Courier New', monospace;
   text-shadow: 0 0 6px rgba(77,179,255,0.4);
-  display: block; margin: 0; padding: 0;
+  display: block; margin: 0 auto; padding: 0; text-align: left;
+}
+@media (max-width: 640px) {
+  #am-bar {
+    flex-direction: column; align-items: flex-start; gap: 8px;
+    height: auto; padding: 12px 16px;
+  }
+  #am-bar > div:first-child {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  }
+  #am-bar .am-title { font-size: 10px; letter-spacing: 0.18em; }
+  #am-bar .am-tag { font-size: 9px; margin-left: 0; }
+  .am-actions { gap: 8px; align-self: stretch; }
+  .am-ctrl { font-size: 9px; padding: 7px 10px; letter-spacing: 0.16em; flex: 1; text-align: center; }
+  #am-stage { padding: 16px 8px; }
 }
 #am-info {
   flex: 1; display: none; align-items: flex-start; justify-content: center;
@@ -4048,15 +4063,16 @@ The hard part is not vectors. It is opinionated defaults: which areas matter, wh
 
   function fitScreenToStage(sc) {
     if (!sc) return;
-    // padding inside stage = 12px each side
-    const pad = 24;
+    // padding inside stage = 12px each side (16/8 on mobile)
+    const isMobile = window.innerWidth <= 640;
+    const pad = isMobile ? 16 : 24;
     const stageW = Math.max(0, stage.clientWidth  - pad);
     const stageH = Math.max(0, stage.clientHeight - pad);
     if (!stageW || !stageH) return;
     // Courier char width ≈ 0.6 × fontSize; line height = 1.18 × fontSize
     const fsByW = stageW / (sc.cols * 0.60);
     const fsByH = stageH / (sc.rows * 1.18);
-    const fs = Math.max(4, Math.min(fsByW, fsByH));
+    const fs = Math.max(isMobile ? 6 : 4, Math.min(fsByW, fsByH));
     screen.style.fontSize = fs.toFixed(2) + 'px';
     screen.style.lineHeight = '1.18';
   }
