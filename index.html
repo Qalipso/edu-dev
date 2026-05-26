@@ -346,13 +346,23 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .system__ascii[data-color="electric"] { color: #ff5773; text-shadow: 0 0 4px rgba(255,87,115,0.25); }
 .system__ascii[data-color="violet"]   { color: #c080ff; text-shadow: 0 0 4px rgba(192,128,255,0.25); }
 .system__ascii[data-color="teal"]     { color: #40a8ff; text-shadow: 0 0 4px rgba(64,168,255,0.25); }
+.system__img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: top center;
+  display: block; transition: transform var(--dur-slow) var(--ease-out), opacity var(--dur-fast) var(--ease-ui);
+}
+.system:hover .system__img { transform: scale(1.03); }
+.system__ascii-host::before {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to top, rgba(4,12,24,0.72) 0%, rgba(4,12,24,0.08) 55%, transparent 100%);
+}
 .system__ascii-label {
-  position: absolute; bottom: 0; left: 0; right: 0;
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
   display: flex; justify-content: space-between;
   padding: 10px 14px;
   font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.2em;
-  text-transform: uppercase; color: rgba(255,255,255,0.35);
-  background: linear-gradient(to top, rgba(4,10,20,0.9) 0%, transparent 100%);
+  text-transform: uppercase; color: rgba(255,255,255,0.55);
+  background: linear-gradient(to top, rgba(4,10,20,0.85) 0%, transparent 100%);
 }
 .imghost__label {
   position: absolute; bottom: 14px; left: 14px; right: 14px;
@@ -2150,7 +2160,7 @@ body::before {
       url:"https://shadow-landing-sage.vercel.app",
       repo:"https://github.com/Qalipso/Shadow-AI-Second-Brain",
       docs:"./shadow.html",
-      intro:"shadow", sceneIdx:0 },
+      intro:"shadow", sceneIdx:0, img:"shadow-inbox.png" },
 
     { code:"P/02", year:"2026", title:"AI Evaluation", kicker:"LLM testing workbench — 25 routes, ship-ready",
       color:"#36c5c5",
@@ -2168,7 +2178,7 @@ body::before {
       url:"https://ai-eval-tool.vercel.app",
       repo:"https://github.com/Qalipso/ai-evaluation-tool",
       docs:"./ai-evaluation.html",
-      intro:"ai-evaluation", sceneIdx:1 },
+      intro:"ai-evaluation", sceneIdx:1, img:"aieval-main.png" },
 
     { code:"P/03", year:"2026", title:"PromptOps", kicker:"Prompt registry & versioning — full stack monorepo",
       color:"#d4903a",
@@ -2186,7 +2196,7 @@ body::before {
       url:"https://promptops-tool.vercel.app",
       repo:"https://github.com/Qalipso/promptops-tool",
       docs:"./promptops.html",
-      intro:"promptops", sceneIdx:2 },
+      intro:"promptops", sceneIdx:2, img:"promtops-version.png" },
 
     { code:"P/04", year:"2026", title:"Shadow Landing", kicker:"Product story page — Lighthouse 92/100/100/100",
       color:"#9b7ebd",
@@ -2204,7 +2214,7 @@ body::before {
       url:"https://shadow-landing-sage.vercel.app",
       repo:"https://github.com/Qalipso/Shadow-Landing",
       docs:null,
-      intro:"glyph", sceneIdx:3 },
+      intro:"glyph", sceneIdx:3, img:"shadowlanding-main.png" },
 
     { code:"P/05", year:"2026", title:"RAG Playground", kicker:"Side-by-side retrieval teaching sandbox",
       color:"#40c080",
@@ -2222,7 +2232,7 @@ body::before {
       url:"https://rag-playground-tool.vercel.app",
       repo:"https://github.com/Qalipso/rag-memory-playground",
       docs:null,
-      intro:"rag-memory", sceneIdx:4 },
+      intro:"rag-memory", sceneIdx:4, img:"ragmemory-chunks.png" },
 
     { code:"P/06", year:"2026", title:"SaaS Delivery", kicker:"B2B implementation tracker — case mgmt",
       color:"#e07040",
@@ -3021,7 +3031,10 @@ body::before {
         </div>
         <div class="system__visual">
           <div class="system__ascii-host" data-file="${p.code}">
-            <pre class="system__ascii" data-scene="${p.sceneIdx}" aria-hidden="true"></pre>
+            ${p.img
+              ? `<img class="system__img" src="project-images/${p.img}" alt="${p.title} screenshot" loading="lazy">`
+              : `<pre class="system__ascii" data-scene="${p.sceneIdx}" aria-hidden="true"></pre>`
+            }
             <div class="system__ascii-label"><span>${p.label}</span><span>${p.code}</span></div>
           </div>
           ${PROJECT_MINIS[p.code] ? `
