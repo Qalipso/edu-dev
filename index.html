@@ -691,10 +691,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   transform: translateZ(15px);
 }
 /* Lab card flip animation */
-@keyframes lab-flip-out { from { opacity:1; transform:perspective(800px) rotateY(0deg); } to { opacity:0; transform:perspective(800px) rotateY(-88deg); } }
-@keyframes lab-flip-in  { from { opacity:0; transform:perspective(800px) rotateY(88deg); }  to { opacity:1; transform:perspective(800px) rotateY(0deg); } }
-.winwin.flip-out { animation: lab-flip-out 0.2s ease-in  forwards; transform-origin: center; }
-.winwin.flip-in  { animation: lab-flip-in  0.22s ease-out forwards; transform-origin: center; }
+@keyframes lab-flip-out { from { opacity:1; transform:perspective(1400px) rotateY(0deg); } to { opacity:0; transform:perspective(1400px) rotateY(24deg); } }
+@keyframes lab-flip-in  { from { opacity:0; transform:perspective(1400px) rotateY(-24deg); } to { opacity:1; transform:perspective(1400px) rotateY(0deg); } }
+.winwin.flip-out { animation: lab-flip-out 0.22s ease-in  forwards; transform-origin: center; }
+.winwin.flip-in  { animation: lab-flip-in  0.26s ease-out forwards; transform-origin: center; }
 /* Lab card dark theme (odd index) */
 .winwin--dark { background: #07091a; }
 .winwin--dark .winwin__body { background: #07091a; }
