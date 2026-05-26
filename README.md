@@ -25,7 +25,7 @@ python3 -m http.server 5188
 
 - GitHub: https://github.com/Qalipso
 - LinkedIn: https://www.linkedin.com/in/eduard-shatalov-6a7a50248/
-- Email: quadwailt@gmail.com
+- Email: eduard@shatalov.dev
 
 ## License
 

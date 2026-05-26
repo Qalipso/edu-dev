@@ -906,51 +906,201 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   display: block; margin: 0; padding: 0;
 }
 #am-info {
-  flex: 1; display: none; align-items: center; justify-content: center;
-  padding: 40px 48px; opacity: 0; transition: opacity 0.55s ease; overflow-y: auto;
+  flex: 1; display: none; align-items: flex-start; justify-content: center;
+  padding: 80px 56px 48px; opacity: 0; transition: opacity 0.55s ease; overflow-y: auto;
 }
 #am-modal[data-color="warm"] #am-screen { color:#ffaa44; text-shadow:0 0 6px rgba(255,170,68,0.4); }
 #am-modal[data-color="cool"] #am-screen { color:#4db3ff; text-shadow:0 0 6px rgba(77,179,255,0.4); }
 #am-modal[data-color="violet"] #am-screen { color:#c080ff; text-shadow:0 0 6px rgba(192,128,255,0.4); }
 #am-modal[data-color="teal"] #am-screen { color:#40a8ff; text-shadow:0 0 6px rgba(64,168,255,0.4); }
 #am-modal[data-color="electric"] #am-screen { color:#ff5773; text-shadow:0 0 6px rgba(255,87,115,0.4); }
-.am-fi-layout { display:grid; grid-template-columns:1fr 1fr; gap:48px; max-width:1100px; width:100%; align-items:start; }
+/* ============ IMAGE LIGHTBOX ============ */
+#am-lightbox {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(2,5,14,0.96);
+  display: none; align-items: center; justify-content: center;
+  cursor: zoom-out;
+}
+#am-lightbox.open {
+  display: flex;
+  animation: modal-enter 0.2s var(--ease-out) both;
+}
+#am-lightbox-img {
+  max-width: 88vw; max-height: 88vh;
+  border-radius: 6px;
+  border: 1px solid rgba(77,179,255,0.14);
+  box-shadow: 0 0 0 1px rgba(77,179,255,0.06), 0 40px 80px -16px rgba(0,0,0,0.96);
+  pointer-events: none; display: block;
+}
+/* ============ MODAL INFO PANEL — PRODUCT COVER ============ */
+.am-fi-layout {
+  display: grid; grid-template-columns: 1.35fr 1fr; gap: 52px;
+  max-width: 1180px; width: 100%; align-items: start;
+}
 @media (max-width:820px) {
-  .am-fi-layout { grid-template-columns:1fr; gap:24px; }
+  .am-fi-layout { grid-template-columns:1fr; gap:28px; }
   #am-info { padding: 24px 20px; }
-  .am-fi-image { max-height: 220px; object-fit: cover; }
 }
-.am-fi-image-no { font-family:var(--f-mono); font-size:10px; letter-spacing:0.2em; color:#4a6a9a; margin-bottom:12px; }
-.am-fi-image { width:100%; border:1px solid #0c1e38; display:block; }
-.am-fi-no { font-family:var(--f-mono); font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#4db3ff; margin-bottom:16px; }
-.am-fi-sub { font-family:var(--f-mono); font-size:13px; letter-spacing:0.14em; text-transform:uppercase; color:#b8d4ff; margin:0 0 24px; font-weight:600; }
-.am-fi-divider { height:1px; background:#0c1e38; margin-bottom:24px; }
-.am-fi-tags { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
-.am-fi-tag { font-family:var(--f-mono); font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:#4db3ff; border:1px solid #0c1e38; padding:4px 10px; }
-.am-fi-desc { font-size:14px; line-height:1.7; color:#6b8ab0; margin-bottom:32px; }
-.am-fi-links { display:flex; gap:16px; flex-wrap:wrap; }
+/* --- Browser Frame --- */
+.am-fi-image-wrap { position: relative; }
+.am-fi-frame {
+  border-radius: 8px; overflow: hidden;
+  border: 1px solid rgba(77,179,255,0.14);
+  background: #050c18;
+  box-shadow:
+    0 0 0 1px rgba(77,179,255,0.06),
+    0 0 28px -6px rgba(77,179,255,0.1),
+    0 32px 64px -16px rgba(0,0,0,0.88);
+  transition:
+    transform var(--dur-slow) var(--ease-out),
+    box-shadow var(--dur-slow) var(--ease-out),
+    border-color var(--dur-slow) var(--ease-out);
+}
+.am-fi-frame:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(77,179,255,0.28);
+  box-shadow:
+    0 0 0 1px rgba(77,179,255,0.2),
+    0 0 40px -6px rgba(77,179,255,0.18),
+    0 40px 80px -16px rgba(0,0,0,0.92);
+}
+.am-fi-frame-bar {
+  height: 30px; background: #060d1b;
+  border-bottom: 1px solid rgba(77,179,255,0.08);
+  display: flex; align-items: center; padding: 0 12px; gap: 10px;
+  position: relative; z-index: 2;
+}
+.am-fi-frame-dots { display: flex; gap: 5px; }
+.am-fi-frame-dots span { width: 8px; height: 8px; border-radius: 50%; }
+.am-fi-frame-dots span:nth-child(1) { background: rgba(255,95,80,0.42); }
+.am-fi-frame-dots span:nth-child(2) { background: rgba(255,188,46,0.32); }
+.am-fi-frame-dots span:nth-child(3) { background: rgba(40,200,80,0.32); }
+.am-fi-frame-url {
+  flex: 1; text-align: center;
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.06em;
+  color: rgba(77,179,255,0.25); text-transform: lowercase;
+}
+/* Image container — holds image + overlay + scan line */
+.am-fi-image-container { position: relative; overflow: hidden; }
+.am-fi-image {
+  width: 100%; display: block;
+  object-fit: cover; object-position: top center;
+  max-height: 340px; cursor: zoom-in;
+  filter: brightness(1.08) contrast(1.04);
+  /* soft inner shadow via box-shadow on the container below */
+}
+/* Hover system-line overlay */
+.am-fi-image-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 28px 14px 12px;
+  background: linear-gradient(to top, rgba(3,9,22,0.92) 0%, rgba(3,9,22,0.5) 55%, transparent 100%);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.28s var(--ease-out);
+}
+.am-fi-frame:hover .am-fi-image-overlay { opacity: 1; }
+.am-fi-overlay-line {
+  display: block; font-family: var(--f-mono); font-size: 9.5px;
+  color: rgba(77,179,255,0.72); letter-spacing: 0.08em; line-height: 1.9;
+}
+.am-fi-overlay-line::before { content: '> '; color: rgba(77,179,255,0.35); }
+/* Scan line element (boot sequence) */
+.am-fi-frame-scan {
+  position: absolute; left: 0; right: 0; top: -3px; height: 3px;
+  background: linear-gradient(90deg, transparent 0%, rgba(77,179,255,0.55) 50%, transparent 100%);
+  pointer-events: none; opacity: 0; z-index: 5;
+  box-shadow: 0 0 12px rgba(77,179,255,0.4);
+}
+.am-fi-image-meta {
+  margin-top: 10px;
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #2a4060;
+  display: flex; justify-content: space-between;
+}
+/* Boot sequence keyframes */
+@keyframes am-glitch {
+  0%,100% { opacity:1; filter:none; transform:none; }
+  15%      { opacity:0.7; filter:brightness(2) saturate(0); transform:translateX(1px); }
+  30%      { opacity:1; filter:none; transform:none; }
+  50%      { opacity:0.85; filter:brightness(1.6) hue-rotate(160deg); transform:translateX(-1px); }
+  65%      { opacity:1; filter:none; transform:none; }
+}
+.am-fi-glitch { animation: am-glitch 0.28s steps(1) both; }
+/* Boot status line */
+.am-fi-boot-status {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: #4db3ff;
+  margin-top: 10px; height: 14px; opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.am-fi-boot-status::before { content: '● '; font-size: 7px; color: rgba(77,179,255,0.6); }
+/* --- Info Side --- */
+.am-fi-detail { display: flex; flex-direction: column; }
+.am-fi-no {
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #4db3ff; margin-bottom: 8px;
+}
+.am-fi-sub {
+  font-size: 22px; letter-spacing: -0.025em; font-family: var(--f-display);
+  color: #ccddf8; margin: 0 0 10px; font-weight: 500; line-height: 1.15;
+}
+.am-fi-desc {
+  font-size: 13px; line-height: 1.65; color: #4a6888; margin-bottom: 20px;
+}
+/* --- Metrics grid --- */
+.am-fi-metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px;
+  margin-bottom: 20px;
+}
+.am-fi-metric { border-top: 1px solid rgba(77,179,255,0.08); padding-top: 9px; }
+.am-fi-metric-val {
+  display: block; font-family: var(--f-mono); font-size: 14px;
+  color: #8ac0ec; letter-spacing: -0.01em; font-weight: 600;
+  line-height: 1.1; margin-bottom: 4px;
+}
+.am-fi-metric-key {
+  display: block; font-family: var(--f-mono); font-size: 9px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: #2e4e6e;
+}
+/* --- Divider --- */
+.am-fi-divider { height: 1px; background: rgba(77,179,255,0.06); margin-bottom: 14px; }
+/* --- Decisions compact --- */
+.am-fi-decisions-compact { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.am-fi-decision-row { display: flex; align-items: baseline; gap: 10px; }
+.am-fi-decision-num {
+  font-family: var(--f-mono); font-size: 8.5px; letter-spacing: 0.08em;
+  color: rgba(77,179,255,0.5); flex-shrink: 0;
+}
+.am-fi-decision-text {
+  font-family: var(--f-mono); font-size: 11px; color: #3e5e7e;
+  letter-spacing: 0.02em; line-height: 1.4;
+}
+/* --- Stack muted line --- */
+.am-fi-stack-line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #2c4460;
+  margin-bottom: 18px;
+}
+.am-fi-stack-dot { color: #1a2e44; }
+/* --- CTAs --- */
+.am-fi-links { display: flex; gap: 10px; flex-wrap: wrap; }
 .am-fi-link {
-  font-family:var(--f-mono); font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#4db3ff;
-  padding-bottom:2px; border-bottom:1px solid #0c1e38;
-  text-decoration:none; transition:border-color .2s, color .2s;
+  font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: #4db3ff;
+  padding: 7px 14px; border: 1px solid rgba(77,179,255,0.18);
+  text-decoration: none; border-radius: 2px;
+  display: flex; align-items: center; gap: 5px;
+  transition:
+    background var(--dur-fast) var(--ease-ui),
+    border-color var(--dur-fast) var(--ease-ui),
+    color var(--dur-fast) var(--ease-ui);
 }
-.am-fi-link:hover { color:#b8d4ff; border-color:#4db3ff; }
-.am-fi-detail { display:flex; flex-direction:column; }
-.am-fi-section { margin-bottom:20px; }
-.am-fi-section-label {
-  font-family:var(--f-mono); font-size:9px; letter-spacing:0.22em;
-  text-transform:uppercase; color:#4a6a9a; margin-bottom:10px; display:block;
+.am-fi-link:hover { color: #040c18; background: #4db3ff; border-color: #4db3ff; }
+.am-fi-link-arrow {
+  display: inline-block;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
-.am-fi-decisions { list-style:none; padding:0; margin:0; display:grid; gap:7px; }
-.am-fi-decisions li {
-  font-size:13px; line-height:1.45; color:#6b8ab0;
-  padding-left:14px; position:relative;
-}
-.am-fi-decisions li::before { content:"·"; position:absolute; left:0; color:#4db3ff; font-weight:700; }
-.am-fi-roadmap {
-  font-family:var(--f-mono); font-size:11.5px; line-height:1.6;
-  color:#6b8ab0; letter-spacing:0.01em; margin:0;
-}
+.am-fi-link:hover .am-fi-link-arrow { transform: translateX(2px); }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ============ V2 — VISUAL ARTIFACTS + MOTION ============ */
@@ -2094,7 +2244,7 @@ body::before {
     <div class="mono up dim" style="margin-bottom:36px">/ 07</div>
     <h2>Let's build something useful<span style="color:var(--accent)">.</span></h2>
     <div class="contact__ctas">
-      <a class="btn btn--primary" href="mailto:quadwailt@gmail.com">quadwailt@gmail.com <span>→</span></a>
+      <a class="btn btn--primary" href="mailto:eduard@shatalov.dev">eduard@shatalov.dev <span>→</span></a>
       <a class="btn" href="https://www.linkedin.com/in/eduard-shatalov-6a7a50248/" target="_blank" rel="noopener">Resume <span>↗</span></a>
       <a class="btn" href="https://github.com/Qalipso" target="_blank" rel="noopener">GitHub <span>↗</span></a>
       <a class="btn" href="https://www.linkedin.com/in/eduard-shatalov-6a7a50248/" target="_blank" rel="noopener">LinkedIn <span>↗</span></a>
@@ -2113,6 +2263,11 @@ body::before {
   <div class="center">Eduard Shatalov</div>
   <div class="right"><a href="#top">↑ Top</a></div>
 </footer>
+
+<!-- ============ IMAGE LIGHTBOX ============ -->
+<div id="am-lightbox" role="dialog" aria-modal="true" aria-label="Full-size image">
+  <img id="am-lightbox-img" src="" alt="" />
+</div>
 
 <!-- ============ ASCII INTRO MODAL ============ -->
 <div id="am-modal" aria-hidden="true">
@@ -3031,10 +3186,7 @@ body::before {
         </div>
         <div class="system__visual">
           <div class="system__ascii-host" data-file="${p.code}">
-            ${p.img
-              ? `<img class="system__img" src="project-images/${p.img}" alt="${p.title} screenshot" loading="lazy">`
-              : `<pre class="system__ascii" data-scene="${p.sceneIdx}" aria-hidden="true"></pre>`
-            }
+            <pre class="system__ascii" data-scene="${p.sceneIdx}" aria-hidden="true"></pre>
             <div class="system__ascii-label"><span>${p.label}</span><span>${p.code}</span></div>
           </div>
           ${PROJECT_MINIS[p.code] ? `
@@ -3378,6 +3530,7 @@ body::before {
 
   /* ============ AFTER INTRO ============ */
   function afterIntro() {
+    window.scrollTo({ top: 0, behavior: 'instant' });
     renderSystems();
     renderCaps();
     renderLab();
@@ -3389,6 +3542,35 @@ body::before {
     wireSmoothScroll();
     wireScrollspy();
     wireContactBoot();
+    wireLightbox();
+  }
+
+  /* ============ LIGHTBOX ============ */
+  function wireLightbox() {
+    const lb    = $('am-lightbox');
+    const lbImg = $('am-lightbox-img');
+
+    function openLightbox(src, alt) {
+      lbImg.src = src;
+      lbImg.alt = alt || '';
+      lb.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeLightbox() {
+      lb.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    lb.addEventListener('click', closeLightbox);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
+    });
+
+    // Delegated: clicks on .am-fi-image inside #am-info
+    $('am-info').addEventListener('click', e => {
+      const img = e.target.closest('.am-fi-image');
+      if (img) openLightbox(img.src, img.alt);
+    });
   }
 
   /* ============ BOOT ============
@@ -3417,7 +3599,11 @@ body::before {
     {
       scene: shadow, color: 'cool', no: '01', tag: 'second-brain',
       subtitle: 'Always on your side',
+      short_desc: 'Captures life events into 12 areas, surfaces patterns via AI-powered daily reports. Dogfooded daily.',
       full_desc: 'External cognitive layer capturing life events, classifying into 12 life areas, and storing in pgvector RAG. Surfaces patterns via daily/weekly reports, ShadowOrb chat, and 4 Zod-validated intervention tools. Cost-aware router (mini vs 4o, sub-1ms). RLS-enforced on all 18 Supabase tables. 17 Playwright E2E specs.',
+      metrics: [{val:'18',label:'Supabase tables'},{val:'17',label:'E2E specs'},{val:'12',label:'life areas'},{val:'<1ms',label:'router'}],
+      status: 'SHADOW ONLINE · DAILY CONTEXT SYNCED',
+      hoverLines: ['capturing event...', 'routing to life area...', 'generating daily report...'],
       tech: ['Next.js 16', 'React 19', 'Supabase', 'pgvector', 'OpenAI', 'Zod', 'Playwright'],
       decisions: [
         'pgvector over Pinecone — one integration, fits Supabase, zero extra infra cost',
@@ -3435,7 +3621,11 @@ body::before {
     {
       scene: aiEval, color: 'cool', no: '02', tag: 'evaluation',
       subtitle: 'LLM output testing workbench',
+      short_desc: '25-route eval platform. One real GPT-4o-mini rubric judge. Rest honestly mocked with DemoBanner.',
       full_desc: 'UI reference + product spec for an LLM eval platform. 25 routes: rubric editor, claim groundedness heat map, regression compare, human review queue, markdown export, 8-article wiki. One rubric calls real gpt-4o-mini judge; rest demonstrates feature surface with mock data and honest DemoBanner.',
+      metrics: [{val:'25',label:'routes'},{val:'1',label:'real LLM judge'},{val:'8',label:'wiki articles'},{val:'mock-first',label:'honest UI'}],
+      status: 'AI EVAL ONLINE · RUBRIC ENGINE READY',
+      hoverLines: ['loading rubric...', 'running judge...', 'scoring output...'],
       tech: ['Next.js 15', 'React 19', 'TypeScript', 'Tailwind', 'react-markdown'],
       decisions: [
         'Mock-first for UI speed — real LLM rubric added in S3 as proof point',
@@ -3453,7 +3643,11 @@ body::before {
     {
       scene: promptops, color: 'cool', no: '03', tag: 'prompt-registry',
       subtitle: 'Prompt asset registry & versioning',
+      short_desc: 'Version-controlled prompt registry. Immutable versions, SHA-256 hashing, audit log, CLI tooling.',
       full_desc: 'A production-style registry for managing prompts as versioned software assets. PromptOps stores prompts, tracks immutable versions, renders templates deterministically, hashes outputs with SHA-256, and records lifecycle changes through an audit log. Built with Hono, Drizzle, Postgres, Next.js 15, CLI tooling, and 50+ unit tests.',
+      metrics: [{val:'50+',label:'unit tests'},{val:'SHA-256',label:'output hashing'},{val:'Turbo',label:'monorepo'},{val:'SQL-first',label:'Drizzle ORM'}],
+      status: 'PROMPTOPS ONLINE · VERSION REGISTRY ACTIVE',
+      hoverLines: ['fetching version...', 'rendering template...', 'hashing output...'],
       tech: ['Hono 4', 'Drizzle 0.36', 'Postgres', 'Next.js 15', 'Turbo', 'Vitest'],
       decisions: [
         'Custom template engine over Handlebars — type-safe, no runtime dep, fully tested',
@@ -3471,7 +3665,11 @@ body::before {
     {
       scene: saas, color: 'cool', no: '04', tag: 'landing',
       subtitle: 'It followed you here.',
+      short_desc: 'Procedural mascot breathes and shifts through 11 emotional states. Follows your cursor with spring physics.',
       full_desc: 'Your shadow has always been with you — quietly trailing every step, holding what you\'ve let go of. Shady is that shadow given form: a small procedural figure that breathes, shifts through 11 emotional states, and leans toward your cursor. This landing doesn\'t explain Shadow. It introduces it. Because some things are better felt before they\'re understood.',
+      metrics: [{val:'11',label:'emotional states'},{val:'SVG',label:'procedural mascot'},{val:'spring',label:'custom physics'},{val:'static',label:'zero runtime cost'}],
+      status: 'SHADOW LANDING ONLINE · SHADY INITIALIZED',
+      hoverLines: ['initializing shady...', 'reading cursor delta...', 'shifting mood state...'],
       tech: ['Next.js 15.5', 'Framer Motion 11', 'TypeScript', 'Tailwind v3', 'Playwright'],
       decisions: [
         'Procedural SVG mascot over Lottie — bespoke, no JSON bloat, full state control',
@@ -3489,7 +3687,11 @@ body::before {
     {
       scene: ragMemory, color: 'cool', no: '05', tag: 'rag-playground',
       subtitle: 'Side-by-side retrieval teaching sandbox',
+      short_desc: 'Compare keyword BM25 vs embedding retrieval side-by-side. No backend or API key required.',
       full_desc: 'In-browser RAG sandbox: chunker → keyword BM25 or OpenAI embed retrieval toggle → heuristic and LLM-as-judge faithfulness eval. Side-by-side runner compares up to 4 pipeline configs on the same query with per-stage scores. No API key needed for keyword mode.',
+      metrics: [{val:'4',label:'pipeline configs'},{val:'2',label:'retrieval modes'},{val:'BM25',label:'in-browser'},{val:'side-by-side',label:'comparison'}],
+      status: 'RAG ENGINE ONLINE · BM25 INDEX READY',
+      hoverLines: ['chunking document...', 'ranking by BM25...', 'scoring faithfulness...'],
       tech: ['Next.js 15', 'React 18', 'TypeScript', 'Custom MVP engine', 'OpenAI embeddings'],
       decisions: [
         'In-browser engine over server-side — no API keys required for visitors',
@@ -3521,40 +3723,70 @@ body::before {
   let autoTimer = null;
 
   function buildInfoHTML(s) {
-    const tagsHtml = s.tech.map(t => `<span class="am-fi-tag">${t}</span>`).join('');
-    const decisionsHtml = s.decisions
-      ? `<div class="am-fi-section">
-           <div class="am-fi-section-label">Key decisions</div>
-           <ul class="am-fi-decisions">${s.decisions.map(d => `<li>${d}</li>`).join('')}</ul>
-         </div>`
-      : '';
-    const roadmapHtml = s.roadmap
-      ? `<div class="am-fi-section">
-           <div class="am-fi-section-label">Roadmap</div>
-           <p class="am-fi-roadmap">${s.roadmap}</p>
-         </div>`
-      : '';
-    const linksHtml = s.links.map(l =>
-      `<a href="${l.href}" class="am-fi-link" target="_blank" rel="noopener noreferrer">${l.label} <span>↗</span></a>`
+    // Metrics
+    const metricsHtml = (s.metrics || []).map(m =>
+      `<div class="am-fi-metric">
+        <span class="am-fi-metric-val">${m.val}</span>
+        <span class="am-fi-metric-key">${m.label}</span>
+      </div>`
     ).join('');
+
+    // Decisions: trim to choice (before " — "), show 3 max, numbered
+    const decisionsHtml = (s.decisions || []).slice(0, 3).map((d, i) => {
+      const choice = d.split(' — ')[0];
+      const num = String(i + 1).padStart(2, '0');
+      return `<div class="am-fi-decision-row">
+        <span class="am-fi-decision-num">${num}</span>
+        <span class="am-fi-decision-text">${choice}</span>
+      </div>`;
+    }).join('');
+
+    // Stack as dot-separated muted line
+    const stackHtml = s.tech.map((t, i) =>
+      i === 0 ? `<span>${t}</span>` : `<span class="am-fi-stack-dot">·</span><span>${t}</span>`
+    ).join('');
+
+    // CTAs
+    const linksHtml = s.links.map(l =>
+      `<a href="${l.href}" class="am-fi-link" target="_blank" rel="noopener noreferrer">
+        ${l.label}<span class="am-fi-link-arrow">↗</span>
+      </a>`
+    ).join('');
+
+    // Browser chrome URL from filename
+    const frameUrl = s.image.replace('project-images/', '').replace('.png', '').replace(/-/g, ' ');
+
+    // Hover overlay system lines
+    const overlayHtml = (s.hoverLines || []).map(l =>
+      `<span class="am-fi-overlay-line">${l}</span>`
+    ).join('');
+
     return `
       <div class="am-fi-layout">
         <div class="am-fi-image-wrap">
-          <div class="am-fi-image-no">P/${s.no}</div>
-          <img class="am-fi-image" src="${s.image}" alt="${s.scene.title}" loading="lazy" />
+          <div class="am-fi-frame">
+            <div class="am-fi-frame-bar">
+              <div class="am-fi-frame-dots"><span></span><span></span><span></span></div>
+              <div class="am-fi-frame-url">${frameUrl}</div>
+            </div>
+            <div class="am-fi-image-container">
+              <img class="am-fi-image" src="${s.image}" alt="${s.scene.title}" loading="lazy" />
+              <div class="am-fi-image-overlay">${overlayHtml}</div>
+              <div class="am-fi-frame-scan"></div>
+            </div>
+          </div>
+          <div class="am-fi-image-meta"><span>P/${s.no} · ${s.tag}</span><span>screenshot</span></div>
         </div>
         <div class="am-fi-detail">
           <div class="am-fi-no">${s.no} · ${s.tag}</div>
           <p class="am-fi-sub">${s.subtitle}</p>
-          <p class="am-fi-desc">${s.full_desc}</p>
+          <p class="am-fi-desc">${s.short_desc || s.full_desc}</p>
+          <div class="am-fi-metrics">${metricsHtml}</div>
           <div class="am-fi-divider"></div>
-          <div class="am-fi-section">
-            <div class="am-fi-section-label">Stack</div>
-            <div class="am-fi-tags">${tagsHtml}</div>
-          </div>
-          ${decisionsHtml}
-          ${roadmapHtml}
+          <div class="am-fi-decisions-compact">${decisionsHtml}</div>
+          <div class="am-fi-stack-line">${stackHtml}</div>
           <div class="am-fi-links">${linksHtml}</div>
+          <div class="am-fi-boot-status" data-status="${s.status || ''}">${s.status ? '' : ''}</div>
         </div>
       </div>`;
   }
@@ -3660,9 +3892,75 @@ body::before {
 
   replayBtn.addEventListener('click', () => {
     if (activeIdx < 0) return;
-    if (phase === 'info') returnToAnim(activeIdx);
+    if (phase === 'info') runInfoBootSequence(activeIdx);
     else if (player) player.replay();
   });
+
+  function runInfoBootSequence(idx) {
+    const s       = MODAL_SCENES[idx];
+    const layout  = info.querySelector('.am-fi-layout');
+    if (!layout) return;
+
+    const titleEl    = info.querySelector('.am-fi-sub');
+    const metricEls  = Array.from(info.querySelectorAll('.am-fi-metric'));
+    const statusEl   = info.querySelector('.am-fi-boot-status');
+    const scanEl     = info.querySelector('.am-fi-frame-scan');
+
+    // Save full title before clearing
+    const fullTitle = titleEl ? titleEl.textContent : '';
+
+    // Phase 1 (0ms): glitch flash on layout
+    layout.classList.add('am-fi-glitch');
+    setTimeout(() => layout.classList.remove('am-fi-glitch'), 320);
+
+    // Phase 2 (80ms): scanline sweeps top→bottom through image
+    if (scanEl) {
+      setTimeout(() => {
+        scanEl.style.transition = 'none';
+        scanEl.style.top = '-3px';
+        scanEl.style.opacity = '1';
+        requestAnimationFrame(() => {
+          scanEl.style.transition = 'top 0.52s linear';
+          scanEl.style.top = '100%';
+          setTimeout(() => { scanEl.style.opacity = '0'; }, 560);
+        });
+      }, 80);
+    }
+
+    // Phase 3 (300ms): typewriter title
+    if (titleEl) {
+      titleEl.textContent = '';
+      let i = 0;
+      setTimeout(() => {
+        const iv = setInterval(() => {
+          titleEl.textContent = fullTitle.slice(0, ++i);
+          if (i >= fullTitle.length) clearInterval(iv);
+        }, 36);
+      }, 300);
+    }
+
+    // Phase 4 (500ms): metrics appear one-by-one
+    metricEls.forEach((el, i) => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(5px)';
+      el.style.transition = 'none';
+      setTimeout(() => {
+        el.style.transition = 'opacity 0.22s ease, transform 0.22s var(--ease-out)';
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      }, 500 + i * 150);
+    });
+
+    // Phase 5 (1400ms): status line blinks in
+    if (statusEl && s.status) {
+      statusEl.style.opacity = '0';
+      statusEl.textContent = s.status;
+      setTimeout(() => {
+        statusEl.style.transition = 'opacity 0.35s ease';
+        statusEl.style.opacity = '1';
+      }, 1400);
+    }
+  }
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
